@@ -1,11 +1,11 @@
-#include <stdio.h>
+//task 1
+/*#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
 extern int errno;
-//task 1
-/*int main(void){
+int main(void){
 
   char buffer[128];
   if(gethostname(buffer,128)==-1)
@@ -24,14 +24,14 @@ extern int errno;
 #include <string.h>
 int main(void)
 {
-int fd, cara;
+int fd, n;
   struct sockaddr_in addr;
   fd=socket(AF_INET,SOCK_DGRAM,0);//UDP socket
   if(fd==-1)exit(1);//error
   memset((void*)&addr,(int)'\0',sizeof(addr));
   addr.sin_family=AF_INET;
-  addr.sin_addr=
+  if((addr.sin_addr=gethostbyname("tejo"))==NULL)exit(-1);
   addr.sin_port=htons(8000);
-  cara=sendto(fd,"Hello!\n",7,0,(struct sockaddr*)&addr,sizeof(addr));
+  n=sendto(fd,"Hello!\n",7,0,(struct sockaddr*)&addr,sizeof(addr));
   if(n==-1)exit(1);//error
 }
