@@ -9,13 +9,13 @@ extern int errno;
 
   char buffer[128];
   if(gethostname(buffer,128)==-1)
-  printf(“error: %s\n",strerror(errno));
-  else printf(“host name: %s\n",buffer);
+  printf(ï¿½error: %s\n",strerror(errno));
+  else printf(ï¿½host name: %s\n",buffer);
   exit(0);
 }
 */
 
-//task 3 
+//task 3
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -24,7 +24,7 @@ extern int errno;
 #include <string.h>
 int main(void)
 {
-int fd, n;
+int fd, cara;
   struct sockaddr_in addr;
   fd=socket(AF_INET,SOCK_DGRAM,0);//UDP socket
   if(fd==-1)exit(1);//error
@@ -32,6 +32,6 @@ int fd, n;
   addr.sin_family=AF_INET;
   addr.sin_addr=
   addr.sin_port=htons(8000);
-  n=sendto(fd,"Hello!\n",7,0,(struct sockaddr*)&addr,sizeof(addr));
+  cara=sendto(fd,"Hello!\n",7,0,(struct sockaddr*)&addr,sizeof(addr));
   if(n==-1)exit(1);//error
 }
