@@ -447,7 +447,7 @@ struct hostent *g;
 int fd, addrlen, newfd, r;
 struct sockaddr_in addr;
 int n, nw;
-char *ptr, buffer[128], message[140];
+char *ptr, buffer[128];
 struct in_addr *a;
 
 
@@ -473,12 +473,14 @@ else{
 }
 
 r=0;
+ptr=&buffer[0];
 while(1){
+  memset(buffer, 0, strlen(buffer)); // FUNÇÃO QUE LIMPA STRINGS 
   addrlen=sizeof(addr);
   if((newfd=accept(fd,(struct sockaddr*)&addr,&addrlen))==-1)exit(1);//error
-  while((n=read(newfd,message,140))!=0){if(n==-1)exit(1);//error
+  while((n=read(newfd,buffer,140))!=0){if(n==-1)exit(1);//error
     printf("recebido no server %s\n", buffer);
-    ptr=&message[0];
+    ptr=&buffer[0];
     while(n>0){if((nw=write(newfd,ptr,n))<=0)exit(1);//error
       n-=nw; ptr+=nw;}
     }
