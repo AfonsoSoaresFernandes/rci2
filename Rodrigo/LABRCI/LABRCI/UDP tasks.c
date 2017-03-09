@@ -21,6 +21,7 @@ extern int errno;
 
 int main(void){
     
+    
     // gethostname
     /*char buffer[128];
      
@@ -33,7 +34,7 @@ int main(void){
     
     //gethostbyname
     
-    struct hostent *h;
+   /* struct hostent *h;
     struct in_addr *a;
     
     if ((h = gethostbyname("macbook-de-rodrigo-lopes-do-o-barbosa-2.local"))==NULL) {
@@ -46,10 +47,10 @@ int main(void){
     a=(struct in_addr*)h->h_addr_list[0];
     
     printf("internet adress: %s (%08lX)\n", inet_ntoa(*a), (long unsigned int)ntohl(a->s_addr));
-    exit(0);
+    exit(0);*/
     
     //UDP Conection
-    /*
+    
      int fd, n, addrlen;
      char buffer[128];
      struct sockaddr_in addr;
@@ -57,7 +58,7 @@ int main(void){
      struct in_addr *a;
      
      
-     // struct in_addr iaddr;
+     // struct in_addr iaddr;                       CENA DO PROF!!!
      
      //inet_aton("193.136.138.142",&iaddr);
      
@@ -97,8 +98,19 @@ int main(void){
      exit(1);
      }
      
-     write(1,"echo: ",6);//stdout
+     write(1,"Echo: ",6);//stdout
      write(1,buffer,n);
      close(fd);
-     exit(0);*/
+     
+     h = gethostbyaddr(&addr.sin_addr,sizeof(addr.sin_addr),AF_INET);  //GET HOST BY ADDR
+     
+     if (h==NULL) {
+     printf("Sent by: [%s:%hu]\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+
+     }else{
+     printf("Sent by: [%s:%hu]\n", h->h_name, ntohs(addr.sin_port));
+     }
+     exit(0);
+     
+
 }
