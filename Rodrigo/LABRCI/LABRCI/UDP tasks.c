@@ -52,7 +52,7 @@ int main(void){
     //UDP Conection
     
      int fd, n, addrlen;
-     char buffer[128];
+     char buffer[141];
      struct sockaddr_in addr;
      struct hostent *h;
      struct in_addr *a;
@@ -62,7 +62,7 @@ int main(void){
      
      //inet_aton("193.136.138.142",&iaddr);
      
-     if ((h = gethostbyname("tejo"))==NULL) {    //GET HOST NAME
+     if ((h = gethostbyname("macbook-de-rodrigo-lopes-do-o-barbosa-2.local"))==NULL) {    //GET HOST NAME
      printf("error: %s\n", strerror(errno));
      exit(1);
      }
@@ -81,7 +81,7 @@ int main(void){
      memset((void*)&addr, (int)'\0', sizeof(addr));
      addr.sin_family=AF_INET;
      addr.sin_addr= *a;
-     addr.sin_port=htons(58000);
+     addr.sin_port=htons(9000);
      
      n=sendto(fd,"Cheguei!\n",9,0,(struct sockaddr*)&addr, sizeof(addr));
      if(n==-1){
@@ -91,7 +91,7 @@ int main(void){
      
      addrlen=sizeof(addr);
      
-     n= recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr, &addrlen);
+     n= recvfrom(fd,buffer,141,0,(struct sockaddr*)&addr, &addrlen);
      
      if(n==-1){//error
      printf("error: %s\n", strerror(errno));

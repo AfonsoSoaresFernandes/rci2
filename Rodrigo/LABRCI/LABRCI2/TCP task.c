@@ -16,6 +16,7 @@
 # include <arpa/inet.h>
 # include <string.h>
 # include <unistd.h>
+# include <signal.h>
 extern int errno;
 
 
@@ -23,9 +24,10 @@ int main(void){
     
     int fd, n, nleft, nbytes, nwritten, nread;
     struct sockaddr_in addr;
-    char *ptr, buffer[128];
+    char *ptr, buffer[141];
     struct hostent *h;
     struct in_addr *a;
+    void (*old_handler)(int);   //Interrupt Handler
     
     
     if ((h = gethostbyname("tejo"))==NULL) {    //GET HOST NAME
@@ -61,6 +63,13 @@ int main(void){
     
     nleft = nbytes;                             //WRITE MESSAGE
     while (nleft>0) {
+        
+        if ((old_handler=signal(SIGPIPE, SIG_IGN))==SIG_ERR) {  //ERROR IF CONECION LOST
+            printf("error: %s\n", strerror(errno));
+            exit(1);
+        }
+        
+        
         nwritten= write(fd, ptr, nleft);
         
         if (nwritten<=0) {                          //ERROR
