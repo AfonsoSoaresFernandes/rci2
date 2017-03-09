@@ -176,6 +176,7 @@ exit(0);
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <stdio.h>
 
 int main(void){
   int fd, n, addrlen, nbytes, nleft, nread, nwritten;
@@ -206,7 +207,7 @@ int main(void){
     exit(1);
   }
 
-  scanf("%s" ,buffer);
+  gets(buffer);
 
   nleft=nbytes=strlen(buffer);
 
