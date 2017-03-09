@@ -177,14 +177,14 @@ exit(0);
 #include <arpa/inet.h>
 #include <string.h>
 
-/*int main(void){
-  int fd, n, addrlen;
+int main(void){
+  int fd, n, addrlen, nbytes, nleft, nread, nwritten;
   struct sockaddr_in addr;
-  char buffer[128];
+  char buffer[128], *ptr;
   struct hostent *h;
   struct in_addr *a;
 
-  if((h=gethostbyname("tejo.ist.utl.pt"))==NULL){
+  if((h=gethostbyname("afonso-VirtualBox"))==NULL){
     printf("1 error: %s\n", strerror(errno));
     exit(2);
   }
@@ -198,28 +198,50 @@ exit(0);
   memset((void*)&addr,(int)'\0',sizeof(addr));
   addr.sin_family=AF_INET;
   addr.sin_addr=*a;
-  addr.sin_port=htons(58000);
+  addr.sin_port=htons(9000);
 
   n=connect(fd,(struct sockaddr*)&addr,sizeof(addr));//Estabelecer a ligação TCP com o server
   if(n==-1){
-    printf("\n");
+    printf("connect falhou\n");
     exit(1);
   }
 
-  n=sendto(fd,"hello!\n",7,0,(struct sockaddr*)&addr,sizeof(addr));
-  if(n==-1){
-    printf("2 error: %s\n", strerror(errno));
-    exit(1);//error
+  scanf("%s" ,buffer);
+
+  nleft=nbytes=strlen(buffer);
+
+  printf("TAMANHO DA MENSAGEM: %d\n",nbytes );
+  ptr=buffer;
+  while(nleft>0){
+    nwritten=write(fd,ptr,nleft);
+    if(nwritten<=0){
+      printf("ciclo while é merda\n");
+      exit(1);
+    }//error
+    nleft-=nwritten;
+    ptr+=nwritten;}
+
+  nleft=nbytes; ptr=buffer;
+
+  while(nleft>0){
+    nread=read(fd,ptr,nleft);
+    if(nread==-1){
+      printf("ciclo while é merda\n");
+      exit(1);
+    }//error
+    else if(nread==0){
+      printf("Passou pelo else a ler\n");
+      break;//closed by peer
+    }
+    nleft-=nread;
+    ptr+=nread;
   }
 
-  addrlen=sizeof(addr);
-  n=recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
-  if(n==-1){
-    printf("erro no receive from\n");
-    exit(1);
-  }//error
+  nread=nbytes-nleft;
+
   write(1,"echo: ",6);//stdout
-  write(1,buffer,n);
+  write(1,buffer,nread);
+  printf("\n\n\n");
 
   h=gethostbyaddr(&addr.sin_addr,sizeof(addr.sin_addr),AF_INET);// esta parte é toda um pouco redundante porque temos o addr desde o inicio em que fazemos get host
 
@@ -229,7 +251,7 @@ exit(0);
   close(fd);
   exit(0);
 }
-*/
+
 
 //task 7  TCP, write and read
 
@@ -314,7 +336,7 @@ exit(0);
 //task 8 Lidar com o SIGPIPE quando a ligação se perde durante o ciclo while do write
 #include <signal.h>
 
-int main(void){
+/*int main(void){
   int fd, n, addrlen,nbytes, nleft, nwritten, nread;
   struct sockaddr_in addr;
   char *ptr, buffer[128];
@@ -387,7 +409,7 @@ int main(void){
 
   close(fd);
   exit(0);
-}
+}*/
 
 
 //task 9 criar um servidor eccho UDP

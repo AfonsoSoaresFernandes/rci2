@@ -314,7 +314,7 @@ exit(0);
 //task 8 Lidar com o SIGPIPE quando a ligação se perde durante o ciclo while do write
 #include <signal.h>
 
-int main(void){
+/*int main(void){
   int fd, n, addrlen,nbytes, nleft, nwritten, nread;
   struct sockaddr_in addr;
   char *ptr, buffer[128];
@@ -387,10 +387,10 @@ int main(void){
 
   close(fd);
   exit(0);
-}
+}*/
 
 
-//task 9 criar um servidor eccho UDP
+//task 9 criar um servidor eccho UDP e bind
 
 #include <stdlib.h>
 #include <sys/types.h>
@@ -417,7 +417,8 @@ int main(void){
 
   printf("O nome do server eccho é: %s\n",inet_ntoa(addr.sin_addr));
 
-  while(1){addrlen=sizeof(addr);
+  while(1){
+    addrlen=sizeof(addr);
     nread=recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
     if(nread==-1)exit(1);//error
     ret=sendto(fd,buffer,nread,0,(struct sockaddr*)&addr,addrlen);
@@ -425,5 +426,57 @@ int main(void){
   }
 close(fd);
 exit(0);
+}*/
+
+
+//task 10 TCP server, bind, listen and accept
+
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
+
+int main(void){
+
+struct hostent *g;
+int fd, addrlen, newfd;
+struct sockaddr_in addr;
+int n, nw;
+char *ptr, buffer[128];
+struct in_addr *a;
+
+
+if((fd=socket(AF_INET,SOCK_STREAM,0))==-1)exit(1);//error
+
+memset((void*)&addr,(int)'\0',sizeof(addr));
+addr.sin_family=AF_INET;
+addr.sin_addr.s_addr=htonl(INADDR_ANY);
+addr.sin_port=htons(9000);
+
+if(bind(fd,(struct sockaddr*)&addr,sizeof(addr))==-1)
+ exit(1);//error
+
+if(listen(fd,5)==-1)exit(1);//error
+
+if(gethostname(buffer,128)==-1)printf("error: %s\n", strerror(errno));
+printf("Host name: %s\n", buffer);
+
+if((g=gethostbyname(buffer))==NULL)printf("nao encontrou o host pelo nome");
+else{
+  a=(struct in_addr*)g->h_addr_list[0];
+  printf("internet address: %s (%08lX)\n",inet_ntoa(*a),(long unsigned int)ntohl(a->s_addr));
 }
-*/
+while(1){
+  addrlen=sizeof(addr);
+  if((newfd=accept(fd,(struct sockaddr*)&addr,&addrlen))==-1)exit(1);//error
+  while((n=read(newfd,buffer,128))!=0){if(n==-1)exit(1);//error
+    ptr=&buffer[0];
+    while(n>0){if((nw=write(newfd,ptr,n))<=0)exit(1);//error
+      n-=nw; ptr+=nw;}
+    }
+  close(newfd);
+}
+close(fd); exit(0);
+}
