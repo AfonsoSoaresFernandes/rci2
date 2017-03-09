@@ -447,7 +447,7 @@ struct hostent *g;
 int fd, addrlen, newfd, r;
 struct sockaddr_in addr;
 int n, nw;
-char *ptr, buffer[128];
+char *ptr, buffer[128], message[140];
 struct in_addr *a;
 
 
@@ -471,14 +471,14 @@ else{
   a=(struct in_addr*)g->h_addr_list[0];
   printf("internet address: %s (%08lX)\n",inet_ntoa(*a),(long unsigned int)ntohl(a->s_addr));
 }
-buffer[0] = '\0';
+
 r=0;
 while(1){
   addrlen=sizeof(addr);
   if((newfd=accept(fd,(struct sockaddr*)&addr,&addrlen))==-1)exit(1);//error
-  while((n=read(newfd,buffer,128))!=0){if(n==-1)exit(1);//error
-    printf("ler no server %s\n", buffer);
-    ptr=&buffer[0];
+  while((n=read(newfd,message,140))!=0){if(n==-1)exit(1);//error
+    printf("recebido no server %s\n", buffer);
+    ptr=&message[0];
     while(n>0){if((nw=write(newfd,ptr,n))<=0)exit(1);//error
       n-=nw; ptr+=nw;}
     }
