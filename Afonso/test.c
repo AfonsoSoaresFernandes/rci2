@@ -471,11 +471,11 @@ else{
   a=(struct in_addr*)g->h_addr_list[0];
   printf("internet address: %s (%08lX)\n",inet_ntoa(*a),(long unsigned int)ntohl(a->s_addr));
 }
-
+printf("o address: %u\n", a->s_addr);
 r=0;
 ptr=&buffer[0];
 while(1){
-  memset(buffer, 0, strlen(buffer)); // FUNÇÃO QUE LIMPA STRINGS 
+  memset(buffer, 0, strlen(buffer)); // FUNÇÃO QUE LIMPA STRINGS
   addrlen=sizeof(addr);
   if((newfd=accept(fd,(struct sockaddr*)&addr,&addrlen))==-1)exit(1);//error
   while((n=read(newfd,buffer,140))!=0){if(n==-1)exit(1);//error

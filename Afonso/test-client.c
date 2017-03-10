@@ -183,6 +183,88 @@ int main(void){
   struct sockaddr_in addr;
   char buffer[128], *ptr;
   struct hostent *h;
+  struct in_addr a;
+
+  //if((nleft=inet_aton("109.49.147.24",&a))==0)printf("ip n funciona ");
+
+  printf("ip funciona %d", nleft);
+  fd=socket(AF_INET,SOCK_STREAM,0);//TCP socket
+  if(fd==-1){
+    printf("Erro na socket\n");
+    exit(1);
+  }//error
+  memset((void*)&addr,(int)'\0',sizeof(addr));
+  addr.sin_family=AF_INET;
+  addr.sin_addr.s_addr=16842879;
+  addr.sin_port=htons(9000);
+
+
+  n=connect(fd,(struct sockaddr*)&addr,sizeof(addr));//Estabelecer a ligação TCP com o server
+  if(n==-1){
+    printf("connect falhou\n");
+    exit(1);
+  }
+  printf("Connect right\n");
+
+  scanf("%s", buffer);
+
+  nleft=nbytes=strlen(buffer);
+
+  printf("TAMANHO DA MENSAGEM: %d\n",nbytes );
+  ptr=buffer;
+  while(nleft>0){
+    nwritten=write(fd,ptr,nleft);
+    if(nwritten<=0){
+      printf("ciclo while é merda\n");
+      exit(1);
+    }//error
+    nleft-=nwritten;
+    ptr+=nwritten;}
+
+  nleft=nbytes; ptr=buffer;
+
+  while(nleft>0){
+    nread=read(fd,ptr,nleft);
+    if(nread==-1){
+      printf("ciclo while é merda\n");
+      exit(1);
+    }//error
+    else if(nread==0){
+      printf("Passou pelo else a ler\n");
+      break;//closed by peer
+    }
+    nleft-=nread;
+    ptr+=nread;
+  }
+
+  nread=nbytes-nleft;
+
+  write(1,"echo: ",6);//stdout
+  write(1,buffer,nread);
+  printf("\n\n\n");
+
+  h=gethostbyaddr(&addr.sin_addr,sizeof(addr.sin_addr),AF_INET);// esta parte é toda um pouco redundante porque temos o addr desde o inicio em que fazemos get host
+
+  if(h==NULL)printf("sent by [%s:%hu]\n",inet_ntoa(addr.sin_addr),ntohs(addr.sin_port));
+  else printf("sent by [%s:%hu]\n",h->h_name,ntohs(addr.sin_port));
+
+  close(fd);
+  exit(0);
+}
+/*
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <string.h>
+#include <stdio.h>
+
+int main(void){
+  int fd, n, addrlen, nbytes, nleft, nread, nwritten;
+  struct sockaddr_in addr;
+  char buffer[128], *ptr;
+  struct hostent *h;
   struct in_addr *a;
 
   if((h=gethostbyname("afonso-VirtualBox"))==NULL){
@@ -252,8 +334,7 @@ int main(void){
   close(fd);
   exit(0);
 }
-
-
+*/
 //task 7  TCP, write and read
 
 #include <unistd.h>
