@@ -179,9 +179,9 @@ int main(void){
   struct sockaddr_in addr;
   char buffer[128], *ptr;
   struct hostent *h;
-  struct in_addr a;
+  //struct in_addr a;
 
-  if((nleft=inet_aton("192.168.1.96",&a))==0)printf("ip n funciona ");
+  //if((nleft=inet_aton("192.168.1.96",&a))==0)printf("ip n funciona ");
 
   printf("ip funciona %d", nleft);
   fd=socket(AF_INET,SOCK_STREAM,0);//TCP socket
@@ -191,7 +191,7 @@ int main(void){
   }//error
   memset((void*)&addr,(int)'\0',sizeof(addr));
   addr.sin_family=AF_INET;
-  addr.sin_addr=a;
+  addr.sin_addr.s_addr=1627498688;
   addr.sin_port=htons(9000);
 
 
