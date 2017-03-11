@@ -30,12 +30,17 @@ int main(void){
     void (*old_handler)(int);   //Interrupt Handler
     
     
-    if ((h = gethostbyname("tejo"))==NULL) {    //GET HOST NAME
+    //alterado
+    
+    struct in_addr iaddr;
+    inet_aton("192.168.1.97",&iaddr);
+    
+   /* if ((h = gethostbyname("afonso-VirtualBox"))==NULL) {    //GET HOST NAME
         printf("error: %s\n", strerror(errno));
         exit(1);
     }
     
-    a=(struct in_addr*)h->h_addr_list[0];
+    a=(struct in_addr*)h->h_addr_list[0];*/
     
     fd = socket(AF_INET, SOCK_STREAM, 0); // TCP SOCKET
     
@@ -46,8 +51,8 @@ int main(void){
     
     memset((void*)&addr, (int)'\0', sizeof(addr)); //ADDRESS INIT
     addr.sin_family=AF_INET;
-    addr.sin_addr= *a;
-    addr.sin_port=htons(58000);
+    addr.sin_addr= iaddr;
+    addr.sin_port=htons(9000);
 
     n = connect(fd, (struct sockaddr*)&addr, sizeof(addr)); // Conecting to Server
     

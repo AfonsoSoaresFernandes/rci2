@@ -23,8 +23,10 @@ int main(void) {
     int fd, addrlen, ret, nread;
     struct sockaddr_in addr;
     char buffer[141], name[100];
-    struct hostent *h;
+    
     struct in_addr *a;
+    struct hostent *h;
+  
     
     //INSERIR GETHOST BYNAME  MAKE COMENTS!!!
     
@@ -40,9 +42,11 @@ int main(void) {
     
     a=(struct in_addr*)h->h_addr_list[0];
     
-                                                        //PRINT SERVER NAME AND ADDRESS
+    
+                                                //PRINT SERVER NAME AND ADDRESS
     printf("Official Server Name: %s\n", h->h_name);
     printf("Server adress: %s (%08lX)\n", inet_ntoa(*a), (long unsigned int)ntohl(a->s_addr));
+    
     
     
     fd=socket(AF_INET,SOCK_DGRAM,0); //UDP SOCKET
@@ -63,6 +67,7 @@ int main(void) {
         printf("error: %s\n", strerror(errno));
         exit(1);
     }
+
     
     while (1) {
         addrlen=sizeof(addr);
@@ -73,14 +78,16 @@ int main(void) {
             exit(1);
         }
         
+        
         ret = sendto(fd, buffer, nread, 0, (struct sockaddr*)&addr, addrlen); //SERVER SENDING
         if(ret==-1){                                //ERROR
             printf("error: %s\n", strerror(errno));
             exit(1);
         }
         
-        close(fd);
-        exit(0);
+        
 
     }
+    //close(fd);
+    //exit(0);
 }
