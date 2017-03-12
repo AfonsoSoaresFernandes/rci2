@@ -74,22 +74,20 @@ int main(void){
     addrlen=sizeof(SI_addr);
     memset((void*)buffer,'\0',sizeof(buffer));
     fgets( buffer, 141, stdin); //ORDEM DO UTILIZADOR.
-    printf("BUFFER: %s\n", buffer);
+
     flag=4;//DESTINGUIR ENTRE COMANDOS
-    strcpy(NAME, "join");
-    printf("STRCMP: %d\n", strcmp(buffer, NAME));
-    if((strcmp(buffer, "join"))==0){
+    if(strcmp(buffer, "join\n")==0){
       flag=0;
       printf("entrou join\n");
     }
-    if((strcmp(buffer,"show_servers"))==0){
+    if(strcmp(buffer,"show_servers\n")==0){
       flag=1;
       printf("entrou servers\n");
     }
-    if(strcmp("show_messages", buffer)==0){
+    if(strcmp("show_messages\n", buffer)==0){
       flag=2;
     }
-    if(strcmp("exit", buffer)==0){
+    if(strcmp("exit\n", buffer)==0){
       flag=3;
     }
 
