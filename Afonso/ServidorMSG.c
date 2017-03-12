@@ -24,12 +24,14 @@ extern int errno;
 int main(void){
 
   struct hostent *h;
-  int fd, ret, addrlen, bufferlen, UPT=0, TPT=0, flag,aux;
-  char buffer[141], NAME[40], IP[20];
+  int fd, ret, addrlen, bufferlen, UPT=0, TPT=0, flag;
+  char buffer[300], NAME[40], IP[20];
   struct sockaddr_in addr, SI_addr, AUX_addr;
   struct in_addr *a;
 
-  if(gethostname(NAME, 128)==-1){ //VAI BUSCAR O NOME DO HOST
+
+
+  if(gethostname(NAME, 40)==-1){ //VAI BUSCAR O NOME DO HOST
     printf("error: %s\n",strerror(errno));
     exit(1);
   }
@@ -68,7 +70,7 @@ int main(void){
     printf("Não foi possivel fazer o BIND  da SOCKET\n");
     exit(2);
   }
-  printf("BIND: SUCESS\n");
+  printf("BIND:   SUCESS\n");
 
   while(1){   //CICLO DA INTERFACE DE UTILIZADOR.
     addrlen=sizeof(SI_addr);
@@ -78,23 +80,26 @@ int main(void){
     flag=0;//DESTINGUIR ENTRE COMANDOS
     if(strcmp(buffer, "join\n")==0){
       flag=1;
-      printf("entrou join\n");
+      printf("INTRUÇÃO DADA: join\n");
     }
     if(strcmp(buffer,"show_servers\n")==0){
       flag=2;
-      printf("entrou servers\n");
+      printf("INTRUÇÃO DADA:  show_servers\n");
     }
     if(strcmp("show_messages\n", buffer)==0){
       flag=3;
+      printf("INTRUÇÃO DADA:  show_messages\n");
     }
     if(strcmp("exit\n", buffer)==0){
       flag=4;
+      printf("INTRUÇÃO DADA:  exit\n");
     }
 
 
     switch(flag){
       case 1 ://REGISTAR O SERVIDOR NO SI.
-          sprintf(buffer,"REG %s;%s;%d;%d", NAME, IP, UPT, TPT);
+
+          sprintf(buffer,"REG %s;%s;%d;%d", NAME,"192.168.1.97" /*IP*/, UPT, TPT);
           bufferlen=strlen(buffer);
           ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
 
@@ -116,7 +121,7 @@ int main(void){
         }
 
         addrlen=sizeof(AUX_addr);
-        ret=recvfrom(fd, buffer,141,0,(struct sockaddr*)&AUX_addr, &addrlen);  //RECEBER RESPOSTA.
+        ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);  //RECEBER RESPOSTA.
 
         if(ret==-1){  //VERIFICAR A RECEÇÃO DE DADOS.
           printf("A receção de dados falhou, RECVFROM deu erro\n");
@@ -128,7 +133,7 @@ int main(void){
         break;
 
       case 4 : // ENCERRAR O PROGRAMA.
-        printf("Encerrando o Programa\n");
+        printf("Programa encerrado por sua ordem\n");
         close(fd);
         exit(0);
 

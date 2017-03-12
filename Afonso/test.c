@@ -402,7 +402,7 @@ exit(0);
 #include <arpa/inet.h>
 #include <string.h>
 
-/*int main(void){
+int main(void){
   int fd, addrlen, ret, nread;
   struct sockaddr_in addr;
   char buffer[128];
@@ -423,13 +423,14 @@ exit(0);
   while(1){
     addrlen=sizeof(addr);
     nread=recvfrom(fd,buffer,128,0,(struct sockaddr*)&addr,&addrlen);
+    printf("o meu ip é: %s\n",inet_ntoa(addr.sin_addr));
     if(nread==-1)exit(1);//error
     ret=sendto(fd,buffer,nread,0,(struct sockaddr*)&addr,addrlen);
     if(ret==-1)exit(1);//error
   }
 close(fd);
 exit(0);
-}*/
+}
 
 
 //task 10 TCP server, bind, listen and accept
@@ -441,7 +442,7 @@ exit(0);
 #include <arpa/inet.h>
 #include <string.h>
 
-int main(void){
+/*int main(void){
 
 struct hostent *g;
 int fd, addrlen, newfd, r;
@@ -491,3 +492,4 @@ while(1){
 }
 close(fd); exit(0);
 }
+*/

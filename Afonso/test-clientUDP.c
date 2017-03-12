@@ -87,15 +87,19 @@ int main(void){
   struct sockaddr_in addr;
   char buffer[128];
   struct hostent *h;
-  struct in_addr a;
+  struct in_addr *a;
 
-  if((nleft=inet_aton("192.168.1.96",&a))==0)printf("ip n funciona ");
+  gethostname(buffer,128);
+
+  if((h=gethostbyname(buffer))==NULL)exit(1);//error
+  printf("official host name: %s\n",h->h_name);
+  a=(struct in_addr*)h->h_addr_list[0];
 
   fd=socket(AF_INET,SOCK_DGRAM,0);//UDP socket
   if(fd==-1)exit(1);//error
   memset((void*)&addr,(int)'\0',sizeof(addr));
   addr.sin_family=AF_INET;
-  addr.sin_addr=a;
+  addr.sin_addr=*a;
   addr.sin_port=htons(9000);
 
 
