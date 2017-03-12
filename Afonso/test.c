@@ -451,6 +451,7 @@ char *ptr, buffer[128];
 struct in_addr *a;
 
 
+
 if((fd=socket(AF_INET,SOCK_STREAM,0))==-1)exit(1);//error
 
 memset((void*)&addr,(int)'\0',sizeof(addr));
