@@ -194,7 +194,7 @@ int main(void){
   addr.sin_addr.s_addr=1627498688;
   addr.sin_port=htons(9000);
 
-
+  printf("endereço traduzido: %s\n\n", inet_ntoa(addr.sin_addr));
   n=connect(fd,(struct sockaddr*)&addr,sizeof(addr));//Estabelecer a ligação TCP com o server
   if(n==-1){
     printf("connect falhou\n");
