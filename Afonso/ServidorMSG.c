@@ -75,25 +75,25 @@ int main(void){
     memset((void*)buffer,'\0',sizeof(buffer));
     fgets( buffer, 141, stdin); //ORDEM DO UTILIZADOR.
 
-    flag=4;//DESTINGUIR ENTRE COMANDOS
+    flag=0;//DESTINGUIR ENTRE COMANDOS
     if(strcmp(buffer, "join\n")==0){
-      flag=0;
+      flag=1;
       printf("entrou join\n");
     }
     if(strcmp(buffer,"show_servers\n")==0){
-      flag=1;
+      flag=2;
       printf("entrou servers\n");
     }
     if(strcmp("show_messages\n", buffer)==0){
-      flag=2;
+      flag=3;
     }
     if(strcmp("exit\n", buffer)==0){
-      flag=3;
+      flag=4;
     }
 
 
     switch(flag){
-      case 0 ://REGISTAR O SERVIDOR NO SI.
+      case 1 ://REGISTAR O SERVIDOR NO SI.
           sprintf(buffer,"REG %s;%s;%d;%d", NAME, IP, UPT, TPT);
           bufferlen=strlen(buffer);
           ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
@@ -105,7 +105,7 @@ int main(void){
             printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
           }
           break;
-      case 1 ://PEDIR A LISTA DE SERVIDORES REGISTADOS NO SI.
+      case 2 ://PEDIR A LISTA DE SERVIDORES REGISTADOS NO SI.
         ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,addrlen);// ENVIAR O PEDIDO
 
         if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
@@ -127,7 +127,7 @@ int main(void){
         printf("%s\n",buffer);  //IMPRIMIR OS OUTROS SERVIDORES.
         break;
 
-      case 3 : // ENCERRAR O PROGRAMA.
+      case 4 : // ENCERRAR O PROGRAMA.
         printf("Encerrando o Programa\n");
         close(fd);
         exit(0);
