@@ -231,7 +231,6 @@ int main(int argc, /*const*/ char * argv[]) {
                 printf("%s",buffer);
 
                 
-                
                 break;
             case 4 : // ENCERRAR O PROGRAMA.
                 printf("Programa Encerrado\n");
