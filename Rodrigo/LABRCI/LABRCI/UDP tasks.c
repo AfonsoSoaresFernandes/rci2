@@ -58,18 +58,18 @@ int main(void){
      struct in_addr *a;
      
      
-     // struct in_addr iaddr;                       CENA DO PROF!!!
+      struct in_addr iaddr;                    //   CENA DO PROF!!!
      
-     //inet_aton("193.136.138.142",&iaddr);
+     inet_aton("192.168.1.97",&iaddr);
      
-     if ((h = gethostbyname("macbook-de-rodrigo-lopes-do-o-barbosa-2.local"))==NULL) {    //GET HOST NAME
+     /*if ((h = gethostbyname("macbook-de-rodrigo-lopes-do-o-barbosa-2.local"))==NULL) {    //GET HOST NAME
      printf("error: %s\n", strerror(errno));
      exit(1);
      }
      
      a=(struct in_addr*)h->h_addr_list[0];
      
-     
+     */
      
      fd=socket(AF_INET,SOCK_DGRAM,0); //UDP SOCKET
      
@@ -80,10 +80,10 @@ int main(void){
      
      memset((void*)&addr, (int)'\0', sizeof(addr));
      addr.sin_family=AF_INET;
-     addr.sin_addr= *a;
+     addr.sin_addr= iaddr;
      addr.sin_port=htons(9000);
      
-     n=sendto(fd,"Cheguei!\n",9,0,(struct sockaddr*)&addr, sizeof(addr));
+     n=sendto(fd,"PUBLISH OLA",11,0,(struct sockaddr*)&addr, sizeof(addr));
      if(n==-1){
      printf("error: %s\n", strerror(errno));
      exit(1);
