@@ -23,13 +23,85 @@
 
 typedef struct List{
     char message[141];
-    time_t time;
+    int clock;
 
-    struct List * next;
+    struct List * ptr;
 } List_msg;
 
 
-void main() {
+
+List_msg * insert(List_msg* head, int num) {
+    List_msg *temp, *prev, *next;
+    temp = (List_msg*)malloc(sizeof(List_msg));
+    temp->clock = num;
+    temp->ptr = NULL;
+    if(!head){
+        head=temp;
+    } else{
+        prev = NULL;
+        next = head;
+        while(next && next->clock<=num){
+            prev = next;
+            next = next->ptr;
+        }
+        if(!next){
+            prev->ptr = temp;
+        } else{
+            if(prev) {
+                temp->ptr = prev->ptr;
+                prev-> ptr = temp;
+            } else {
+                temp->ptr = head;
+                head = temp;
+            }
+        }
+    }
+    return head;
+}
+
+
+void free_list(List_msg *head) {
+    List_msg *prev = head;
+    List_msg *cur = head;
+    while(cur) {
+        prev = cur;
+        cur = prev->ptr;
+        free(prev);
+    }
+}
+
+int main(){
+    int num, count = 0;
+    List_msg *head, *p;
+    head = NULL;
+    
+    do {
+        printf("Enter a number");
+        scanf("%d",&num);
+        if(num) {
+            head = insert(head, num);
+        }
+        count++;
+    } while(count<4);
+    p = head;
+    printf("\nThe numbers are:\n");
+    while(p) {
+        printf("%d ", p->clock);
+        p = p->ptr;
+    }
+    free_list(head);
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+/*void main() {
     //printf("%d", (((seconds/3600)/24)/365));
     
     List_msg * head = NULL;
@@ -78,4 +150,4 @@ void main() {
     
     
     exit(0);
-}
+}*/

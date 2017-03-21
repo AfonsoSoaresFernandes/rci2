@@ -28,6 +28,7 @@ Write/read          4
  command            command from user
  show_msg           requirement to show n messages
  publish_msg        requirement tu publish message
+ return_msg         Message return from Servers
  */
 
 # include <stdio.h>
@@ -51,6 +52,7 @@ int main(int argc, /*const*/ char * argv[]) {
     char SI_ip [16], SM_ip[16];
     int SI_Sock, SM_Sock, n, addrlen;
     char buffer[300];
+    char return_msg[300];
     struct sockaddr_in SI_addr;
     struct sockaddr_in SM_addr;
    
@@ -125,13 +127,17 @@ int main(int argc, /*const*/ char * argv[]) {
         
         fgets( buffer, 300, stdin);         //ORDEM DO UTILIZADOR.
         sscanf(buffer, "%s %d", command, &n_msg);
-        printf("BUFFER: %s %d\n", command, n_msg);
         
-        flag=0;                 //DESTINGUIR ENTRE COMANDOS E ALOCAR ARGUMENTOS
+        flag=5;                 //DESTINGUIR ENTRE COMANDOS E ALOCAR ARGUMENTOS
         
                                                     //SHOW_SERVERS
         if((strcmp("show_servers", command))==0){
             flag=1;
+            
+            if (strlen(buffer)>13) {                                //ERROR COMMAND CALL
+                printf("Bad Command Call!\nPlease try: show_servers\n");
+                flag = 0;
+            }
         }
                                                 //PUBLISH
         if((strcmp("publish", command))==0){
@@ -165,8 +171,14 @@ int main(int argc, /*const*/ char * argv[]) {
                                             //EXIT
         if(strcmp("exit", command)==0){
             flag=4;
+            if (strlen(buffer)>4) {                                //ERROR COMMAND CALL
+                printf("Bad Command Call!\nPlease try: exit\n");
+                flag = 0;
+            }
         }
-    
+        if (flag==5) {
+            printf("Command Not Found!\nPlease try:\nshow_servers\npublish\nshow_latest_messages\nexit\n");
+        }
         
         
         switch(flag){
@@ -181,13 +193,13 @@ int main(int argc, /*const*/ char * argv[]) {
                 
                 addrlen=sizeof(SI_addr);
                 
-                n= recvfrom(SI_Sock,buffer,300,0,(struct sockaddr*)&SI_addr, &addrlen);
+                n= recvfrom(SI_Sock,return_msg ,300,0,(struct sockaddr*)&SI_addr, &addrlen);
                 
                 if(n==-1){                                      //ERROR
                     printf("error: %s\n", strerror(errno));
                     exit(1);
                 }
-                printf("%s\n",buffer);
+                printf("%s\n",return_msg);
                 
                 break;
             case 2 ://PUBLICAR MENSAGENS
@@ -222,13 +234,13 @@ int main(int argc, /*const*/ char * argv[]) {
                 
                  addrlen=sizeof(SM_addr);
                 
-                n= recvfrom(SM_Sock,buffer,141,0,(struct sockaddr*)&SM_addr, &addrlen);
+                n= recvfrom(SM_Sock,return_msg,141,0,(struct sockaddr*)&SM_addr, &addrlen);
                 
                 if(n==-1){//error
                     printf("error: %s\n", strerror(errno));
                     exit(1);
                 }
-                printf("%s",buffer);
+                printf("%s",return_msg);
 
                 
                 break;
