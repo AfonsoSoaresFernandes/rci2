@@ -37,17 +37,63 @@ void kill_my_baby(int sig, pid_t child){
 }
 
 //ESTRUTURA QUE GUARDA A INFORMAÇÃO DE OUTROS SERVIDORES DE MENSAGENS
-typedef struct PEERS {
+typedef struct peers {
   char name[40];
   char ip[16];
   int socket, tcp;
-  struct PEERS *next;
-} peers;
+  struct peers *next;
+}
+
+//INICIALIZA A LISTA DE PEERS.
+void init_list_peers( struct peers *head, char *info){
+  char s[2]="\n", *AUX;
+  struct peers *aux, *aux2;
+  int a;
 
 
+  AUX=strtok(info, s);
 
+  while((AUX=strtok(NULL, s))!=NULL){
+    if(head->next==NULL){
+      head->next=(struct peers *)malloc(sizeof(struct peers));
+      if(head->next==NULL){
+        printf("lista de peers mal criada\n");
+        exit(1);
+      }
+      aux=head->next;
+    }else{
+      aux->next=(struct peers*)malloc(sizeof(struct peers));
+      if(aux->next==NULL){
+        printf("lista de peers mal criada\n");
+        exit(1);
+      }
+      aux=aux->next;
+    }
+    sscanf(AUX,"%[^;];%[^;];%d;%d",aux->name,aux->ip,a,aux->tcp);
+  }
+  aux->next=NULL;
+}
 
+//LIGA-SE POR TCP AOS PEERS QUE ESTEJAM NO E DEPOIS DO PONTEIRO ENVIADO POR ARGUMENTO.
+void connect_peers(struct peers *head){
+  struct peers *aux;
+  struct sockaddr_in addr;
 
+  aux=head->next;
+
+  while(aux!=NULL){
+    aux->socket=socket(AF_INET,SOCK_STREAM,0);
+
+    memset((void*)&addr,(int)'\0',sizeof(addr));
+    addr.sin_family=AF_INET;
+    addr.sin_addr=htonl(aux->ip);
+    addr.sin_port=htons(aux->tcp);
+
+    connect(aux->socket,(struct sockaddr_in*)&addr, sizeof(addr));
+
+    aux=aux->next;
+  }
+}
 
 
 
@@ -56,10 +102,10 @@ typedef struct PEERS {
 
 int main(int argc, char** argv){
 
-  struct peers *head, *AUX;
+  struct peers *head, *AUX_peers;
   struct hostent *h;
   int fd ,fd1 ,fd2 , ret, addrlen=0, bufferlen=0, UPT=0, TPT=0, flag, i, maxfd, REG_DONE=0, newfd, n_peers=0;
-  char buffer[300], NAME[40], IP[20], MESSAGE[140], AUX[140], s[2]="\n";
+  char buffer[300], NAME[40], IP[20], MESSAGE[140], AUX[140];
   struct sockaddr_in UDP_addr, SI_addr, TCP_addr, AUX_addr;
   struct in_addr *a;
   fd_set socket_set;
@@ -197,7 +243,7 @@ int main(int argc, char** argv){
     //LIMPA O SET DE FILE DESCRIPTORS
     FD_ZERO(&socket_set);
 
-    //INTRODUZ TODOS OS FILE DESCRIPTORS EXITENTES NO SET
+    //INTRODUZ OS FILE DESCRIPTORS DOS SERVIDORES E TECLADO NO SET.
     FD_SET(0,&socket_set);
     maxfd=0;
     FD_SET(fd,&socket_set);
@@ -207,8 +253,17 @@ int main(int argc, char** argv){
     FD_SET(fd2,&socket_set);
     maxfd=max(maxfd,fd2);
 
+    //INTRODUZ AS SOCKETS TCP DOS PEERS NO SET.
+    AUX_peers=head->next;
+    while(AUX_peers!=NULL){
+      FD_SET(AUX_peers->socket,&socket_set);
+      maxfd=max(maxfd, AUX_peers->socket);
+      AUX_peers=AUX_peers->next;
+    }
+    AUX_peers=NULL;
+
     //ESPERA POR QUALQUER INTERAÇÃO COM AS SOCKETS OU TECLADO (FILE DESCRIPTORS)
-    i=select(maxfd+1, &socket_set, &socket_set,(fd_set*)NULL, (struct timeval*)NULL);
+    i=select(maxfd+1, &socket_set,(fd_set*)NULL,(fd_set*)NULL, (struct timeval*)NULL);
 
     if(i<=0)exit(1);
 
@@ -245,6 +300,7 @@ int main(int argc, char** argv){
             }else if(ret==0){
               printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
             }
+            //DA PRIMEIRA VEZ QUE FAZ JOIN INICIALIZA A LISTA DE PEERS.
             if(REG_DONE==0){
               addrlen=sizeof(SI_ADDR);
               ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,&addrlen);// ENVIAR O PEDIDO
@@ -259,12 +315,8 @@ int main(int argc, char** argv){
               addrlen=sizeof(AUX_addr);
               ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);
 
-              AUX=strtok(buffer, s);
-
-              while((AUX=strtok(NULL, s))!=NULL){
-                sscanf();
-
-              }
+              init_list_peers(head, buffer);
+              connect_peers(head);
             }
             REG_DONE=1;
             break;
@@ -309,7 +361,7 @@ int main(int argc, char** argv){
     // IF QUE PROCESSA OS PEDIDOS DOS TERMINAIS/CLIENTS
     if(FD_ISSET(fd1, &socket_set)){
       addrlen=sizeof(AUX_addr);
-      ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);  //RECEBER PEDIDO DE CLIENT.
+      ret=recvfrom(fd1, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);  //RECEBER PEDIDO DE CLIENT.
 
       // VERIFICAR RECEÇÃO DE DADOS.
       if(ret==-1){
@@ -341,6 +393,7 @@ int main(int argc, char** argv){
           strncpy(AUX, buffer+8,139);// COPIA O QUE VEM A SEGUIR AO PUBLISH.
           bufferlen=strlen(AUX)+1;// TAMANHO DA STRING MAIS O CARACTER DE TERMINAÇÃO
           printf("\n\nPUBLIQUEIIIII: %s\n\n", AUX);
+
           break;
         case 2:
           printf("\n\nmostrei mensagens\n\n");
@@ -350,7 +403,7 @@ int main(int argc, char** argv){
         default: break;
       }
     }
-    // IF QUE PROCESSA OS PEDIDOS DE OUTROS S.M.
+    // IF QUE PROCESSA OS PEDIDOS DE OUTROS S.M. PARA SE LIGAREM POR TCP.
     if(FD_ISSET(fd2, &socket_set)){
       addrlen=sizeof(AUX_addr);
 
@@ -358,7 +411,26 @@ int main(int argc, char** argv){
         printf("Conexão TCP rejeitada error: %d", errno);
       }
 
+      AUX_peers=head->next;
+      while(AUX_peers->next!=NULL){
+        AUX_peers=AUX_peers->next;
+      }
+      AUX_peers->next=(struct peers *)malloc(sizeof(struct peers));
+      if(AUX_peers->next==NULL){
+        printf("");
+      }
+      AUX_peers=AUX_peers->next;
+      AUX_peers->socket=newfd;
+    }
 
+    //CICLO QUE PROCESSA MENSAGENS RECEBIDAS DE OUTROS S.M. JA DENTRO DA CONEXAO TCP.
+    AUX_peers=head->next;
+    while(AUX_peers!=NULL){
+      if(FD_ISSET(AUX_peers->socket, &socket_set)){
+        //LER As MENSAGENS QUE OS PEERS LHE ESTAO A MANDAR E QUE SAO SUPOSTAMENTE NOVAS.
+
+      }
+      AUX_peers=AUX_peers->next;
     }
 
     //DEPOIS DE SE REGISTAR UMA VEZ COM O S.I. FAZ REGISTOS PERIODICOS
@@ -373,6 +445,18 @@ int main(int argc, char** argv){
         exit(3);
       }
     }
+  }
+  //ENCERRA TODAS AS SOCKETS
+  AUX_peers=head->next;
+  while(AUX_peers!=NULL){
+    close(AUX_peers->socket);
+    AUX_peers=AUX_peers->next;
+  }
+
+  AUX_peers=head->next;
+  while(AUX_peers!=NULL){
+    free();
+    AUX_peers=AUX_peers->next;
   }
   close(fd);
   close(fd1);
