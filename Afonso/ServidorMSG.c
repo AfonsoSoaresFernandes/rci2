@@ -8,6 +8,9 @@ Write/read                         4
 fork                               5
  */
 
+//fd socket udp si, fd1 socket udp client, fd2 socket tcp s.m.
+
+
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -19,6 +22,7 @@ fork                               5
 #include <errno.h>
 #include <netdb.h>
 #include <signal.h>
+#include <event.h>
 
 extern int errno;
 
@@ -27,181 +31,246 @@ extern int errno;
 typedef void (*sighandler_t)(int);
 sighandler_t signal(int signum, sighandler_t handler);
 
+//TERMINAR PROCESSO CHILD LIMPANDO OS RECURSOS ALOCADOS
 void kill_my_baby(int sig, pid_t child){
   kill(child, SIGTERM);
 }
 
+//ESTRUTURA QUE GUARDA A INFORMAÇÃO DE OUTROS SERVIDORES DE MENSAGENS
+typedef struct PEERS {
+  char name[40];
+  char ip[16];
+  int socket, tcp;
+  struct PEERS *next;
+} peers;
 
-int main(void){
 
+
+
+
+
+
+
+
+
+
+int main(int argc, char** argv){
+
+  struct peers *head, *AUX;
   struct hostent *h;
-  int fd , ret, addrlen, bufferlen, UPT=0, TPT=0, flag, i;
-  char buffer[300], NAME[40], IP[20], MESSAGE[140], AUX[140];
-  struct sockaddr_in addr, SI_addr, AUX_addr;
+  int fd ,fd1 ,fd2 , ret, addrlen=0, bufferlen=0, UPT=0, TPT=0, flag, i, maxfd, REG_DONE=0, newfd, n_peers=0;
+  char buffer[300], NAME[40], IP[20], MESSAGE[140], AUX[140], s[2]="\n";
+  struct sockaddr_in UDP_addr, SI_addr, TCP_addr, AUX_addr;
   struct in_addr *a;
-  pid_t pid; //VARIAVEL DE NOVO PROCESSO. FORK RULES
+  fd_set socket_set;
 
 
-  //HANDLER
+  //VERIFICA O Nº NECESSÁRIO DE ARGUMENTOS
+  if(argc<8){
+    printf("Argumentos Insuficientes");
+    exit(1);
+  }
+
+  //HANDLER PARA SIGPIPE ERROR
   void (*old_handler)(int);//interrupt handler
+
   if((old_handler=signal(SIGPIPE,SIG_IGN))==SIG_ERR)exit(1);//error
 
 
-  if(gethostname(NAME, 40)==-1){ //VAI BUSCAR O NOME DO HOST
+  //VAI BUSCAR O NOME DO HOST
+  if(gethostname(NAME, 40)==-1){
     printf("error: %s\n",strerror(errno));
     exit(1);
   }
   printf("HOST's name: %s\n", NAME);
 
-  if((h=gethostbyname(NAME))==NULL){ //PREENCHE OS VALORES DO HOST ATRAVÉS DO NOME.
+
+  //PREENCHE OS VALORES DO HOST ATRAVÉS DO NOME.
+  if((h=gethostbyname(NAME))==NULL){
     printf("Erro a adquirir dados do HOST\n");
     printf("error: %s\n",strerror(errno));
     exit(1);
   }
 
-  a=(struct in_addr*)h->h_addr_list[0]; // O CAST FAZ COM QUE O PROGRAMA INTERPRETE O VALOR COMO SENDO DE UMA VARIAVEL DO TIPO EVOCADO PREMITINDO ACEDER AOS VALORES DA ESTRUTURA NORMALMENTE. TOP QUEQUE
+  a=(struct in_addr*)h->h_addr_list[0]; // O CAST PERMITE QUE O PROGRAMA TRANSFORME O PONTEIRO DE STRING NUM PONTEIRO DE in_addr. TOP QUEQUE
   printf("Internet address: %s (%08lX)\n",inet_ntoa(*a),(long unsigned int)ntohl(a->s_addr));
   sprintf(IP,"%s", inet_ntoa(*a));
 
-
-  memset((void*)&SI_addr,(int)'\0',sizeof(SI_addr)); //INICIALIZA O ADDR DE RECEÇÃO DO SI.
+  //INICIALIZA O ADDR DE RECEÇÃO DO SI.
+  memset((void*)&SI_addr,(int)'\0',sizeof(SI_addr));
   SI_addr.sin_family=AF_INET;
   inet_aton("193.136.138.142", &SI_addr.sin_addr);//  TRANFORMA O IP DO SI EM ADDR
   SI_addr.sin_port=htons(59000);//PORTO ONDE O SI RECEBE
 
+  //VALOR PREDEFINIDO
+  UPT=TPT=9000;
+  r=10;
 
-
-  if((pid=fork())==-1){ //CRIAR OUTRO PROCESSO PARA SEPARAR INTERFACE DE UTILIZADOR DOS CLIENTS DO TERMINAL
-    printf("Erro na criação de novo processo\n");
-    exit(5);
-  }
-
-   //PROCESSO FILHO-> CICLO DOS PEDIDOS DOS CLIENTS.
-
-  if(pid==0){
-    if((fd=socket(AF_INET, SOCK_DGRAM,0))==-1){  //CRIA A SOCKET UDP POR ONDE CHEGAM OS PEDIDOS DE LIGAÇÃO DE CLIENTS.
-      printf("Erro na criação da principal SOCKET\n");
-      exit(2);
+  //LER OS ARGUMENTOS DA IVOCAÇÃO DO PROGRAMA;
+  for(i=1; i < argc; i++){
+    strcpy(buffer,argv[i]);
+    if(strcmp("-n",argv[i])==0){
+      sprintf(NAME ,"%s", argv[i+1])
     }
-    printf("SOCKET CLIENT UDP: SUCESS\n");
-
-    memset((void*)&addr,(int)'\0',sizeof(addr)); //INICIALIZA O ADDR DE RECEÇÃO DE DADOS DE CLIENTS.
-    addr.sin_family=AF_INET;
-    addr.sin_addr.s_addr=htonl(INADDR_ANY);
-    addr.sin_port=htons(9000);
-    UPT=TPT=9000; //PORTO ONDE VOU RECEBER UDP DOS CLIENTS
-
-    if(bind(fd,(struct sockaddr*)&addr,sizeof(addr))==-1){  //ATRIBUIR À SOCKET O ADDR DE RECEÇÃO.
-      printf("Não foi possivel fazer o BIND  da SOCKET\n");
-      exit(2);
+    else if(strcmp("-j",argv[i])==0){
+      sprintf(IP, "%s", argv[i+1]);
     }
-    printf("BIND CLIENT UDP:   SUCESS\n");
+    else if(strcmp("-u",argv[i])==0){
+      UPT=atoi(argv[i+1]);
+    }
+    else if(strcmp("-t",argv[i])==0){
+      TPT=atoi(argv[i+1]);
+    }
+    else if(strcmp("-i",argv[i])==0){
+      inet_aton(argv[i+1], &SI_addr.sin_addr);
+    }
+    else if(strcmp("-p",argv[i])==0){
+      SI_addr.sin_port=htonl(atoi(argv[i+1]));
+    }
+    else if(strcmp("-m",argv[i])==0){
 
-    while(1){
-      addrlen=sizeof(addr);
-      ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);  //RECEBER PEDIDO DE CLIENT.
-
-      //ESTE while IMPEDE QUE UMA MENSAGEM DO SI INTERFIRA COM ESTE PROCESSO.
-      while(AUX_addr.sin_addr.s_addr==SI_addr.sin_addr.s_addr){
-        ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);
-      }
-
-      if(ret==-1){  //VERIFICAR A RECEÇÃO DE DADOS.
-        printf("A receção de dados falhou, RECVFROM deu erro\n");
-        exit(3);
-      }else if(ret==0){
-        printf("A função RECVFROM funciona mas não recebeu nada, tente outra vez\n");
-      }
-
-      if((h=gethostbyaddr(&AUX_addr.sin_addr,sizeof(AUX_addr.sin_addr),AF_INET))==NULL){  //SABER  QUE CLIENT FALOU.
-        printf("MAIS UM ERRO\n OLHÒ FOGUETE\n");
-      }else{
-        printf("sent by [%s:%hu]\n",h->h_name,ntohs(AUX_addr.sin_port));
-      }
-
-      sscanf(buffer,"%s ",MESSAGE);  //SEPARAR A MENSAGEM DO CLIENT DO PROTOCOLO.
-
-      flag=0;//DESTINGUIR ENTRE COMANDOS
-      if(strcmp(MESSAGE, "PUBLISH")==0){
-        flag=1;
-        printf("INTRUÇÃO RECEBIDA: %s\n",MESSAGE);
-      }
-      if(strcmp(MESSAGE,"GET_MESSAGES")==0){
-        flag=2;
-        printf("INTRUÇÃO RECEBIDA: %s\n",MESSAGE);
-      }
-
-      switch(flag){
-        case 1:
-          memset((void*)AUX, (int)'\0',sizeof(AUX));
-          strcpy(AUX, buffer+8);// COPIA O QUE VEM A SEGUIR AO PUBLISH.
-          bufferlen=strlen(AUX)+1;// TAMANHO DA STRING MAIS O CARACTER DE TERMINAÇÃO
-          printf("\n\nPUBLIQUEIIIII: %s\n\n", AUX);
-          break;
-        case 2:
-          printf("\n\nmostrei mensagens\n\n");
-          ret=sendto(fd,AUX,bufferlen,0,(struct sockaddr*)&AUX_addr,addrlen);
-          break;
-        default: break;
-      }
+    }
+    else if(strcmp("-r",argv[i])==0){
+      r=atoi(argv[i+1]);
     }
   }
 
-
-
-
-
-   //PROCESSO PAI-> CICLO DA INTERFACE DE UTILIZADOR.
-  printf("CHILD PROCESS Nº: %d\n", pid);
-
-  if((fd=socket(AF_INET, SOCK_DGRAM,0))==-1){  //CRIA A SOCKET UDP POR ONDE CHEGAM OS PEDIDOS DE LIGAÇÃO
-    printf("Erro na criação da principal SOCKET\n");
+  //CRIA A SOCKET UDP POR ONDE COMUNICA COM O S.I.
+  if((fd=socket(AF_INET, SOCK_DGRAM,0))==-1){
+    printf("Erro na criação da SOCKET\n");
     exit(2);
   }
   printf("SOCKET SI UDP: SUCESS\n");
 
-  memset((void*)&addr,(int)'\0',sizeof(addr)); //INICIALIZA O ADDR DE RECEÇÃO DE DADOS DO SERVIDOR IDENTIDADE.
-  addr.sin_family=AF_INET;
-  addr.sin_addr.s_addr=htonl(INADDR_ANY);
-  addr.sin_port=htons(8500);
-  UPT=TPT=9000; //PORTO ONDE VOU RECEBER UDP E TCP
 
-  if(bind(fd,(struct sockaddr*)&addr,sizeof(addr))==-1){  //ATRIBUIR À SOCKET O ADDR DE RECEÇÃO.
+  //CRIA A SOCKET UDP POR ONDE CHEGAM OS PEDIDOS DE LIGAÇÃO DE CLIENTS.
+  if((fd1=socket(AF_INET, SOCK_DGRAM,0))==-1){
+    printf("Erro na criação da SOCKET\n");
+    exit(2);
+  }
+  printf("SOCKET CLIENT UDP: SUCESS\n");
+
+  //CRIA A SOCKET TCP POR ONDE VAI RECEBER PEDIDOS DE LIGAÇÃO DE OUTROS SERVIDORES DE MENSAGENS
+  if((fd2=socket(AF_INET, SOCK_STREAM,0))==-1){
+    printf("Erro na criação SOCKET\n");
+    exit(2);
+  }
+  printf("SOCKET SM TCP: SUCESS\n");
+
+  //INICILIZA O ADDR DO SERVIDOR UDP
+  memset((void*)&UDP_addr,(int)'\0',sizeof(UDP_addr));
+  UDP_addr.sin_family=AF_INET;
+  UDP_addr.sin_addr.s_addr=htonl(INADDR_ANY);
+  UDP.sin_port=htons(UPT);
+
+  //INICIALIZA O ADDR DO SERVIDOR TCP
+  memset((void*)&TCP_addr,(int)'\0',sizeof(TCP_addr));
+  TCP.sin_family=AF_INET;
+  TCP.sin_addr.s_addr=htonl(INADDR_ANY);
+  TCP.sin_port=htons(TPT);
+
+  //LIGA A SOCKET AO ADDR DO SERVER UDP COM O BIND
+  if(bind(fd1,(struct sockaddr*)&UDP_addr,sizeof(UDP_addr))==-1){
     printf("Não foi possivel fazer o BIND  da SOCKET\n");
     exit(2);
   }
-  printf("BIND SI UDP:   SUCESS\n");
+  printf("BIND SERVER UDP:   SUCESS\n");
+
+  //LIGA A SOCKET AO ADDR DO SERVER TCP COM O BIND
+  if(bind(fd2,(struct sockaddr*)&TCP_addr,sizeof(TCP_addr))==-1){
+    printf("Não foi possivel fazer o BIND  da SOCKET\n");
+    exit(2);
+  }
+  printf("BIND SERVER TCP:   SUCESS\n");
+
+  //INICIALIZA A LISTA DE SERVIDORES DE MENSAGENS.
+  head=(struct peers*)malloc(sizeof(struct peers));
+  if(head==NULL){
+    printf("Memória não alocada\n");
+    exit(1);
+  }
+  head->next=NULL;
+
+  if(listen(fd2,5)==-1)exit(1);
 
   while(1){
-    addrlen=sizeof(SI_addr);
-    memset((void*)buffer,'\0',sizeof(buffer));
-    fgets( buffer, 141, stdin); //ORDEM DO UTILIZADOR.
+    //LIMPA O SET DE FILE DESCRIPTORS
+    FD_ZERO(&socket_set);
 
-    flag=0;//DESTINGUIR ENTRE COMANDOS
-    if(strcmp(buffer, "join\n")==0){
-      flag=1;
-      printf("INTRUÇÃO DADA: join\n");
-    }
-    if(strcmp(buffer,"show_servers\n")==0){
-      flag=2;
-      printf("INTRUÇÃO DADA:  show_servers\n");
-    }
-    if(strcmp("show_messages\n", buffer)==0){
-      flag=3;
-      printf("INTRUÇÃO DADA:  show_messages\n");
-    }
-    if(strcmp("exit\n", buffer)==0){
-      flag=4;
-      printf("INTRUÇÃO DADA:  exit\n");
-    }
+    //INTRODUZ TODOS OS FILE DESCRIPTORS EXITENTES NO SET
+    FD_SET(0,&socket_set);
+    maxfd=0;
+    FD_SET(fd,&socket_set);
+    maxfd=max(maxfd,fd);
+    FD_SET(fd1,&socket_set);
+    maxfd=max(maxfd,fd1);
+    FD_SET(fd2,&socket_set);
+    maxfd=max(maxfd,fd2);
 
+    //ESPERA POR QUALQUER INTERAÇÃO COM AS SOCKETS OU TECLADO (FILE DESCRIPTORS)
+    i=select(maxfd+1, &socket_set, &socket_set,(fd_set*)NULL, (struct timeval*)NULL);
 
-    switch(flag){
-      case 1 ://REGISTAR O SERVIDOR NO SI.
+    if(i<=0)exit(1);
 
-          sprintf(buffer,"REG %s;%s;%d;%d", NAME,"192.168.1.97" /*IP*/, UPT, TPT);
-          bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
-          ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
+    //IF QUE PROCESSA ESCRITA NA INTERFACE
+    if(FD_ISSET(0, &socket_set)){
+      memset((void*)buffer,'\0',sizeof(buffer));
+      fgets( buffer, 141, stdin); //ORDEM DO UTILIZADOR.
+      flag=0;//DESTINGUIR ENTRE COMANDOS
+      if(strcmp(buffer, "join\n")==0){
+        flag=1;
+        printf("INTRUÇÃO DADA: join\n");
+      }else if(strcmp(buffer,"show_servers\n")==0){
+        flag=2;
+        printf("INTRUÇÃO DADA:  show_servers\n");
+      }else if(strcmp("show_messages\n", buffer)==0){
+        flag=3;
+        printf("INTRUÇÃO DADA:  show_messages\n");
+      }else if(strcmp("exit\n", buffer)==0){
+        flag=4;
+        printf("INTRUÇÃO DADA:  exit\n");
+      }
+
+      //DIRECIONA PARA O COMANDO CERTO E EXECUTA
+      switch(flag){
+        case 1 ://REGISTAR O SERVIDOR NO SI.
+            addrlen=sizeof(SI_ADDR);
+            sprintf(buffer,"REG %s;%s;%d;%d", NAME,"192.168.1.97" /*IP*/, UPT, TPT);
+            bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
+            ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
+
+            if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
+              printf("O enviu de dados falhou, SEND TO deu erro\n");
+              exit(3);
+            }else if(ret==0){
+              printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
+            }
+            if(REG_DONE==0){
+              addrlen=sizeof(SI_ADDR);
+              ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,&addrlen);// ENVIAR O PEDIDO
+
+              if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
+                printf("O enviu de dados falhou, SEND TO deu erro\n");
+                exit(3);
+              }else if(ret==0){
+                printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
+              }
+
+              addrlen=sizeof(AUX_addr);
+              ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);
+
+              AUX=strtok(buffer, s);
+
+              while((AUX=strtok(NULL, s))!=NULL){
+                sscanf();
+
+              }
+            }
+            REG_DONE=1;
+            break;
+        case 2 ://PEDIR A LISTA DE SERVIDORES REGISTADOS NO SI.
+          addrlen=sizeof(SI_ADDR);
+          ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,&addrlen);// ENVIAR O PEDIDO
 
           if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
             printf("O enviu de dados falhou, SEND TO deu erro\n");
@@ -209,40 +278,104 @@ int main(void){
           }else if(ret==0){
             printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
           }
+
+          addrlen=sizeof(AUX_addr);
+          ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);  //RECEBER RESPOSTA.
+
+          if(ret==-1){  //VERIFICAR A RECEÇÃO DE DADOS.
+            printf("A receção de dados falhou, RECVFROM deu erro\n");
+            exit(3);
+          }else if(ret==0){
+            printf("A função RECVFROM funciona mas não recebeu nada, tente outra vez\n");
+          }
+          printf("%s\n",buffer);  //IMPRIMIR OS OUTROS SERVIDORES.
           break;
-      case 2 ://PEDIR A LISTA DE SERVIDORES REGISTADOS NO SI.
-        ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,addrlen);// ENVIAR O PEDIDO
 
-        if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
-          printf("O enviu de dados falhou, SEND TO deu erro\n");
-          exit(3);
-        }else if(ret==0){
-          printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
-        }
+        case 4 : // ENCERRAR O PROGRAMA.
+          printf("Programa encerrado por sua ordem\n");
 
-        addrlen=sizeof(AUX_addr);
-        ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);  //RECEBER RESPOSTA.
+          //LIBERTAR RECURSOS ALOCADOS.(MEMÓRIA E SOCKETS)
+          close(fd);
+          close(fd1);
+          close(fd2);
+          //FALTA FAZER O FREE DAS STRINGS!!!
+          exit(0);
 
-        if(ret==-1){  //VERIFICAR A RECEÇÃO DE DADOS.
-          printf("A receção de dados falhou, RECVFROM deu erro\n");
-          exit(3);
-        }else if(ret==0){
-          printf("A função RECVFROM funciona mas não recebeu nada, tente outra vez\n");
-        }
-        printf("%s\n",buffer);  //IMPRIMIR OS OUTROS SERVIDORES.
-        break;
+          break;
+        default : break;
+      }
+    }
 
-      case 4 : // ENCERRAR O PROGRAMA.
-        signal(SIGTERM,(void (*)(int))kill_my_baby);
-        printf("Programa encerrado por sua ordem\n");
-        close(fd);
-        //FALTA FAZER O FREE DAS STRINGS!!!
-        exit(0);
+    // IF QUE PROCESSA OS PEDIDOS DOS TERMINAIS/CLIENTS
+    if(FD_ISSET(fd1, &socket_set)){
+      addrlen=sizeof(AUX_addr);
+      ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);  //RECEBER PEDIDO DE CLIENT.
 
-        break;
-      default : break;
+      // VERIFICAR RECEÇÃO DE DADOS.
+      if(ret==-1){
+        printf("A receção de dados falhou, RECVFROM deu erro\n");
+        exit(3);
+      }
+
+      //SABER  QUE CLIENT FALOU.
+      if((h=gethostbyaddr(&AUX_addr.sin_addr,sizeof(AUX_addr.sin_addr),AF_INET))==NULL){
+        printf("MAIS UM ERRO\n OLHÒ FOGUETE\n");
+      }else{
+        printf("sent by [%s:%hu]\n",h->h_name,ntohs(AUX_addr.sin_port));
+      }
+
+      //SEPARAR A MENSAGEM DO CLIENT DO PROTOCOLO.
+      sscanf(buffer,"%s ",MESSAGE);
+
+      flag=0;//DESTINGUIR ENTRE COMANDOS
+      if(strcmp(MESSAGE, "PUBLISH")==0){
+        flag=1;
+        printf("INTRUÇÃO RECEBIDA: %s\n",MESSAGE);
+      }else if(strcmp(MESSAGE,"GET_MESSAGES")==0){
+        flag=2;
+        printf("INTRUÇÃO RECEBIDA: %s\n",MESSAGE);
+      }
+      switch(flag){
+        case 1:
+          memset((void*)AUX, (int)'\0',sizeof(AUX));
+          strncpy(AUX, buffer+8,139);// COPIA O QUE VEM A SEGUIR AO PUBLISH.
+          bufferlen=strlen(AUX)+1;// TAMANHO DA STRING MAIS O CARACTER DE TERMINAÇÃO
+          printf("\n\nPUBLIQUEIIIII: %s\n\n", AUX);
+          break;
+        case 2:
+          printf("\n\nmostrei mensagens\n\n");
+          addrlen=sizeof(AUX_addr);
+          ret=sendto(fd,AUX,bufferlen,0,(struct sockaddr*)&AUX_addr,&addrlen);
+          break;
+        default: break;
+      }
+    }
+    // IF QUE PROCESSA OS PEDIDOS DE OUTROS S.M.
+    if(FD_ISSET(fd2, &socket_set)){
+      addrlen=sizeof(AUX_addr);
+
+      if(newfd=accept(fd2,(struct sockaddr *)&AUX_addr, &addrlen)==-1){
+        printf("Conexão TCP rejeitada error: %d", errno);
+      }
+
+
+    }
+
+    //DEPOIS DE SE REGISTAR UMA VEZ COM O S.I. FAZ REGISTOS PERIODICOS
+    if(REG_DONE==1){
+      addrlen=sizeof(SI_addr);
+      sprintf(buffer,"REG %s;%s;%d;%d", NAME,"192.168.1.97" /*IP*/, UPT, TPT);
+      bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
+      ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
+
+      if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
+        printf("O enviu de dados falhou, SEND TO deu erro\n");
+        exit(3);
+      }
     }
   }
   close(fd);
+  close(fd1);
+  close(fd2);
   exit(0);
 }
