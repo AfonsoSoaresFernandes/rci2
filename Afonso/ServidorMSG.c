@@ -36,15 +36,13 @@ void kill_my_baby(int sig, pid_t child){
   kill(child, SIGTERM);
 }
 
-
-
-
-
-
-
-
-
-
+//ESTRUTURA QUE GUARDA A INFORMAÇÃO DE OUTROS SERVIDORES DE MENSAGENS
+typedef struct PEERS {
+  char name[40];
+  char ip[16];
+  int socket, tcp;
+  struct PEERS *next;
+} peers;
 
 
 
@@ -58,9 +56,10 @@ void kill_my_baby(int sig, pid_t child){
 
 int main(int argc, char** argv){
 
+  struct peers *head, *AUX;
   struct hostent *h;
-  int fd ,fd1 ,fd2 , ret, addrlen, bufferlen, UPT=0, TPT=0, flag, i, maxfd, REG_DONE=0, newfd;
-  char buffer[300], NAME[40], IP[20], MESSAGE[140], AUX[140];
+  int fd ,fd1 ,fd2 , ret, addrlen=0, bufferlen=0, UPT=0, TPT=0, flag, i, maxfd, REG_DONE=0, newfd, n_peers=0;
+  char buffer[300], NAME[40], IP[20], MESSAGE[140], AUX[140], s[2]="\n";
   struct sockaddr_in UDP_addr, SI_addr, TCP_addr, AUX_addr;
   struct in_addr *a;
   fd_set socket_set;
@@ -93,7 +92,7 @@ int main(int argc, char** argv){
     exit(1);
   }
 
-  a=(struct in_addr*)h->h_addr_list[0]; // COMO O H_ADDR_LIST[0] OCUPA OS MESMOS BITES QUE UMA STRUCT IN_ADDR O PROGRAMA ASSUME QUE O PONTEIRO ESTA A APONTAR PARA UM IN_ADDR. TOP QUEQUE
+  a=(struct in_addr*)h->h_addr_list[0]; // O CAST PERMITE QUE O PROGRAMA TRANSFORME O PONTEIRO DE STRING NUM PONTEIRO DE in_addr. TOP QUEQUE
   printf("Internet address: %s (%08lX)\n",inet_ntoa(*a),(long unsigned int)ntohl(a->s_addr));
   sprintf(IP,"%s", inet_ntoa(*a));
 
@@ -151,6 +150,7 @@ int main(int argc, char** argv){
   }
   printf("SOCKET CLIENT UDP: SUCESS\n");
 
+  //CRIA A SOCKET TCP POR ONDE VAI RECEBER PEDIDOS DE LIGAÇÃO DE OUTROS SERVIDORES DE MENSAGENS
   if((fd2=socket(AF_INET, SOCK_STREAM,0))==-1){
     printf("Erro na criação SOCKET\n");
     exit(2);
@@ -183,10 +183,21 @@ int main(int argc, char** argv){
   }
   printf("BIND SERVER TCP:   SUCESS\n");
 
+  //INICIALIZA A LISTA DE SERVIDORES DE MENSAGENS.
+  head=(struct peers*)malloc(sizeof(struct peers));
+  if(head==NULL){
+    printf("Memória não alocada\n");
+    exit(1);
+  }
+  head->next=NULL;
+
   if(listen(fd2,5)==-1)exit(1);
 
   while(1){
+    //LIMPA O SET DE FILE DESCRIPTORS
     FD_ZERO(&socket_set);
+
+    //INTRODUZ TODOS OS FILE DESCRIPTORS EXITENTES NO SET
     FD_SET(0,&socket_set);
     maxfd=0;
     FD_SET(fd,&socket_set);
@@ -196,6 +207,7 @@ int main(int argc, char** argv){
     FD_SET(fd2,&socket_set);
     maxfd=max(maxfd,fd2);
 
+    //ESPERA POR QUALQUER INTERAÇÃO COM AS SOCKETS OU TECLADO (FILE DESCRIPTORS)
     i=select(maxfd+1, &socket_set, &socket_set,(fd_set*)NULL, (struct timeval*)NULL);
 
     if(i<=0)exit(1);
@@ -222,7 +234,7 @@ int main(int argc, char** argv){
       //DIRECIONA PARA O COMANDO CERTO E EXECUTA
       switch(flag){
         case 1 ://REGISTAR O SERVIDOR NO SI.
-            REG_DONE=1;
+            addrlen=sizeof(SI_ADDR);
             sprintf(buffer,"REG %s;%s;%d;%d", NAME,"192.168.1.97" /*IP*/, UPT, TPT);
             bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
             ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
@@ -233,9 +245,32 @@ int main(int argc, char** argv){
             }else if(ret==0){
               printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
             }
+            if(REG_DONE==0){
+              addrlen=sizeof(SI_ADDR);
+              ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,&addrlen);// ENVIAR O PEDIDO
+
+              if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
+                printf("O enviu de dados falhou, SEND TO deu erro\n");
+                exit(3);
+              }else if(ret==0){
+                printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
+              }
+
+              addrlen=sizeof(AUX_addr);
+              ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);
+
+              AUX=strtok(buffer, s);
+
+              while((AUX=strtok(NULL, s))!=NULL){
+                sscanf();
+
+              }
+            }
+            REG_DONE=1;
             break;
         case 2 ://PEDIR A LISTA DE SERVIDORES REGISTADOS NO SI.
-          ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,addrlen);// ENVIAR O PEDIDO
+          addrlen=sizeof(SI_ADDR);
+          ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,&addrlen);// ENVIAR O PEDIDO
 
           if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
             printf("O enviu de dados falhou, SEND TO deu erro\n");
@@ -309,7 +344,8 @@ int main(int argc, char** argv){
           break;
         case 2:
           printf("\n\nmostrei mensagens\n\n");
-          ret=sendto(fd,AUX,bufferlen,0,(struct sockaddr*)&AUX_addr,addrlen);
+          addrlen=sizeof(AUX_addr);
+          ret=sendto(fd,AUX,bufferlen,0,(struct sockaddr*)&AUX_addr,&addrlen);
           break;
         default: break;
       }
@@ -317,23 +353,17 @@ int main(int argc, char** argv){
     // IF QUE PROCESSA OS PEDIDOS DE OUTROS S.M.
     if(FD_ISSET(fd2, &socket_set)){
       addrlen=sizeof(AUX_addr);
+
       if(newfd=accept(fd2,(struct sockaddr *)&AUX_addr, &addrlen)==-1){
         printf("Conexão TCP rejeitada error: %d", errno);
       }
-      flag=0;
-      while((i=read(newfd, buffer,15))!=0){
-        memset((void*)AUX,'\0',sizeof(AUX));
-        i=sprintf(AUX+flag,"%s",buffer);
-        flag+=i;
-      }
-      if(strcmp("SGET_MESSAGES\n",AUX)==0){
-        //ENVIAR LISTA DE MENSAGENS
 
-      }
-      
+
     }
+
     //DEPOIS DE SE REGISTAR UMA VEZ COM O S.I. FAZ REGISTOS PERIODICOS
     if(REG_DONE==1){
+      addrlen=sizeof(SI_addr);
       sprintf(buffer,"REG %s;%s;%d;%d", NAME,"192.168.1.97" /*IP*/, UPT, TPT);
       bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
       ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
