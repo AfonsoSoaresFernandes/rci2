@@ -171,7 +171,7 @@ int main(int argc, /*const*/ char * argv[]) {
                                             //EXIT
         if(strcmp("exit", command)==0){
             flag=4;
-            if (strlen(buffer)>4) {                                //ERROR COMMAND CALL
+            if (strlen(buffer)>5) {                                //ERROR COMMAND CALL
                 printf("Bad Command Call!\nPlease try: exit\n");
                 flag = 0;
             }

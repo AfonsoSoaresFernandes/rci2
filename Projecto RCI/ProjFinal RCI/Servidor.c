@@ -22,13 +22,14 @@
 #include <errno.h>
 #include <netdb.h>
 #include <signal.h>
+
 //#include <event.h>
 
 extern int errno;
 
 
 int max(int a, int b){
-
+    
     if (a>=b) {
         return a;
     }else{
@@ -180,14 +181,16 @@ void init_list_peers( struct peers *head, char *info){
             aux=aux->next;
         }
         sscanf(AUX,"%[^;];%[^;];%d;%d",aux->name,aux->ip,&aux->udp,&aux->tcp);
+        aux->next=NULL;
     }
-    aux->next=NULL;
+    
 }
 
 //LIGA-SE POR TCP AOS PEERS QUE ESTEJAM NO E DEPOIS DO PONTEIRO ENVIADO POR ARGUMENTO.
 void connect_peers(struct peers *head){
     struct peers *aux;
     struct sockaddr_in addr;
+    int ret;
     
     aux=head->next;
     
@@ -201,7 +204,11 @@ void connect_peers(struct peers *head){
         inet_aton(aux->ip,&addr.sin_addr);
         addr.sin_port=htons(aux->tcp);
         
-        connect(aux->socket,(struct sockaddr *)&addr, sizeof(addr));
+        ret=connect(aux->socket,(struct sockaddr *)&addr, sizeof(addr));
+        if(ret==-1){
+            printf("error: %s\n", strerror(errno));
+            //exit(2);
+        }
         
         aux=aux->next;
     }
@@ -217,19 +224,19 @@ int main(int argc, char** argv){
     struct peers *head, *AUX_peers;
     struct hostent *h;
     int r;
-    int fd ,fd1 ,fd2 , ret, addrlen=0, bufferlen=0, UPT=0, TPT=0, flag, i, maxfd, REG_DONE=0, newfd, n_peers=0;
+    int fd ,fd1 ,fd2 , ret, addrlen=0, bufferlen=0, UPT=0, TPT=0, flag, i, maxfd, REG_DONE=0, newfd;
     char buffer[300], NAME[50], IP[20], MESSAGE[140], AUX[140];
     struct sockaddr_in UDP_addr, SI_addr, TCP_addr, AUX_addr;
     struct in_addr *a;
     fd_set socket_set;
     
     /*
-    //VERIFICA O Nº NECESSÁRIO DE ARGUMENTOS
-    if(argc<8){
-        printf("Argumentos Insuficientes");
-        exit(1);
-    }
-    */
+     //VERIFICA O Nº NECESSÁRIO DE ARGUMENTOS
+     if(argc<8){
+     printf("Argumentos Insuficientes");
+     exit(1);
+     }
+     */
     //HANDLER PARA SIGPIPE ERROR
     void (*old_handler)(int);//interrupt handler
     
@@ -382,7 +389,10 @@ int main(int argc, char** argv){
         //ESPERA POR QUALQUER INTERAÇÃO COM AS SOCKETS OU TECLADO (FILE DESCRIPTORS)
         i=select(maxfd+1, &socket_set,(fd_set*)NULL,(fd_set*)NULL, (struct timeval*)NULL);
         
-        if(i<=0)exit(1);
+        if(i<=0){
+            printf("error: %s\n", strerror(errno));
+            exit(1);
+        }
         
         //IF QUE PROCESSA ESCRITA NA INTERFACE
         if(FD_ISSET(0, &socket_set)){
@@ -406,17 +416,6 @@ int main(int argc, char** argv){
             //DIRECIONA PARA O COMANDO CERTO E EXECUTA
             switch(flag){
                 case 1 ://REGISTAR O SERVIDOR NO SI.
-                    addrlen=sizeof(SI_addr);
-                    sprintf(buffer,"REG %s;%s;%d;%d", NAME,"192.168.1.97" /*IP*/, UPT, TPT);
-                    bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
-                    ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
-                    
-                    if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
-                        printf("O enviu de dados falhou, SEND TO deu erro\n");
-                        exit(3);
-                    }else if(ret==0){
-                        printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
-                    }
                     //DA PRIMEIRA VEZ QUE FAZ JOIN INICIALIZA A LISTA DE PEERS.
                     if(REG_DONE==0){
                         addrlen=sizeof(SI_addr);
@@ -433,12 +432,32 @@ int main(int argc, char** argv){
                         addrlen=sizeof(AUX_addr);
                         ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);
                         
+                                            //ERROR
+                        if(ret==-1){
+                            printf("error: %s\n", strerror(errno));
+                            exit(1);
+                        }
+                                                    //Inicializa a Lista de Servidores
                         init_list_peers(head, buffer);
+                                                    //Conectar aos Servidores
                         connect_peers(head);
                         
                         //FALTA AQUI FAZER UM SGET_MESSAGES;
                     }
                     REG_DONE=1;
+                    
+                    addrlen=sizeof(SI_addr);
+                    sprintf(buffer,"REG %s;%s;%d;%d", NAME,"192.168.1.97" /*IP*/, UPT, TPT);
+                    bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
+                    ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
+                    
+                    if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
+                        printf("O enviu de dados falhou, SEND TO deu erro\n");
+                        printf("error: %s\n", strerror(errno));
+                        exit(3);
+                    }else if(ret==0){
+                        printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
+                    }
                     break;
                 case 2 ://PEDIR A LISTA DE SERVIDORES REGISTADOS NO SI.
                     AUX_peers=head->next;
@@ -501,12 +520,14 @@ int main(int argc, char** argv){
             // VERIFICAR RECEÇÃO DE DADOS.
             if(ret==-1){
                 printf("A receção de dados falhou, RECVFROM deu erro\n");
+                printf("error: %s\n", strerror(errno));
                 exit(3);
             }
             
             //SABER  QUE CLIENT FALOU.
             if((h=gethostbyaddr(&AUX_addr.sin_addr,sizeof(AUX_addr.sin_addr),AF_INET))==NULL){
                 printf("MAIS UM ERRO\n OLHÒ FOGUETE\n");
+                printf("error: %s\n", strerror(errno));
             }else{
                 printf("sent by [%s:%hu]\n",h->h_name,ntohs(AUX_addr.sin_port));
             }
@@ -541,6 +562,12 @@ int main(int argc, char** argv){
                     printf("\n\nmostrei mensagens\n\n");
                     addrlen=sizeof(AUX_addr);
                     ret=sendto(fd,AUX,bufferlen,0,(struct sockaddr*)&AUX_addr,&addrlen);
+                    
+                    if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
+                        printf("error: %s\n", strerror(errno));
+                        exit(3);
+                    }
+                    
                     break;
                 default: break;
             }
@@ -551,6 +578,8 @@ int main(int argc, char** argv){
             
             if(newfd=accept(fd2,(struct sockaddr *)&AUX_addr, &addrlen)==-1){
                 printf("Conexão TCP rejeitada error: %d", errno);
+                printf("error: %s\n", strerror(errno));
+
             }
             
             AUX_peers=head->next;
@@ -584,6 +613,7 @@ int main(int argc, char** argv){
             
             if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
                 printf("O enviu de dados falhou, SEND TO deu erro\n");
+                printf("error: %s\n", strerror(errno));
                 exit(3);
             }
         }
