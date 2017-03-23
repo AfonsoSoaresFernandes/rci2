@@ -28,6 +28,110 @@ extern int errno;
 
 
 
+
+//Estrutura que guarda o Endereço da HEAD e TAIL da lista de Mensagens
+//E guarda o numero de mensagens guardadas
+typedef struct List{
+    struct MSG * head;
+    struct MSG * tail;
+    int size;
+    
+} List_msg;
+
+//Estrutura que guar as Mensagens e o sei relogio lógico
+typedef struct MSG{
+    char message[141];
+    int clock;
+    
+    struct MSG * ptr;
+    
+}msg;
+
+//Função que Regista na Lista as Mensagens
+msg * RegMsg(msg * tail, char * message, int clock ){
+    msg * new;
+    new= (msg*)malloc(sizeof(msg));
+    
+    
+    if  ((((tail->clock)-clock)<0) || (((tail->clock)-clock)==0)){
+        new->clock=tail->clock + 1;
+    }else{
+        new->clock=clock;
+    }
+    
+    
+    strcpy(new->message, message);
+    new->ptr=NULL;
+    
+    tail->ptr=new;
+    tail=new;
+    
+    return tail;
+}
+
+//Função que remove da Lista as mensagens mais antigas
+void RemovMsg(msg * head){
+    msg * old, *new;
+    
+    old = head->ptr;
+    new = old->ptr;
+    head->ptr=new;
+    
+    free(old);
+    
+}
+//Função que recebe uma string onde vai escrever TODAS as Mensagens
+void PrintMsg(msg* head, char * message){
+    
+    msg * next;
+    next= head->ptr;
+    
+    strcpy(message, "SMESSAGES\n");
+    while (next) {
+        strcat(message, next->message);
+        next=next->ptr;
+    }
+}
+
+//Função que recebe uma string onde vai escrever as ULTIMAS N Mensagens
+void Print_n_Msg(msg* head, char * message, int n, int size){
+    int i;
+    msg * next;
+    next= head->ptr;
+    n=size-n;
+    
+    for (i=0; i<n; i++) {
+        next= next->ptr;
+    }
+    
+    strcpy(message, "MESSAGES\n");
+    while (next) {
+        strcat(message, next->message);
+        next=next->ptr;
+    }
+}
+
+
+//FUNÇÃO QUE APAGA LISTA
+void free_list(msg *head) {
+    msg *prev = head;
+    msg *cur = head;
+    while(cur) {
+        prev = cur;
+        cur = prev->ptr;
+        free(prev);
+    }
+}
+
+
+
+
+
+
+
+
+
+
 typedef void (*sighandler_t)(int);
 sighandler_t signal(int signum, sighandler_t handler);
 
