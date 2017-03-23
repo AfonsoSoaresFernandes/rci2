@@ -186,6 +186,21 @@ void init_list_peers( struct peers *head, char *info){
 
 }
 
+void remove_peer(struct peers *head, int socket){
+  struct peers * aux, *aux2;
+  aux=head->next;
+  aux2=head;
+  while(aux){
+    if(aux->socket==socket){
+      close(aux->socket);
+      aux2->next=aux->next;
+      free(aux);
+      aux=aux2;
+    }
+    aux2=aux;
+    aux=aux2->next;
+  }
+}
 //LIGA-SE POR TCP AOS PEERS QUE ESTEJAM NO E DEPOIS DO PONTEIRO ENVIADO POR ARGUMENTO.
 void connect_peers(struct peers *head){
     struct peers *aux;
@@ -206,6 +221,7 @@ void connect_peers(struct peers *head){
 
         ret=connect(aux->socket,(struct sockaddr *)&addr, sizeof(addr));
         if(ret==-1){
+            remove_peer(head, aux->socket);
             printf("error: %s\n", strerror(errno));
             //exit(2);
         }
@@ -525,6 +541,7 @@ int main(int argc, char** argv){
           init_list_peers(head, buffer);
           //Conectar aos Servidores
           connect_peers(head);
+
         }
         // IF QUE PROCESSA OS PEDIDOS DOS TERMINAIS/CLIENTS
         if(FD_ISSET(fd1, &socket_set)){
@@ -632,7 +649,7 @@ int main(int argc, char** argv){
             }
         }
     }
-    
+
     //ENCERRA TODAS AS SOCKETS
     AUX_peers=head->next;
     while(AUX_peers!=NULL){
