@@ -77,7 +77,7 @@ void PrintMsg(msg* head, char * message){
     msg * next;
     next= head->ptr;
     
-    strcpy(message, "MESSAGES\n");
+    strcpy(message, "SMESSAGES\n");
     while (next) {
         strcat(message, next->message);
         next=next->ptr;
@@ -85,10 +85,11 @@ void PrintMsg(msg* head, char * message){
 }
 
                             //Função que recebe uma string onde vai escrever as ULTIMAS N Mensagens
-void Print_n_Msg(msg* head, char * message, int n){
+void Print_n_Msg(msg* head, char * message, int n, int size){
     int i;
     msg * next;
     next= head->ptr;
+    n=size-n;
     
     for (i=0; i<n; i++) {
         next= next->ptr;
@@ -167,7 +168,7 @@ int main(){
     PrintMsg(imsg->head, final);
     
                         //Devolve as ultimas N mensagens da Lista
-    Print_n_Msg(imsg->head, final2, n);
+    Print_n_Msg(imsg->head, final2, n, imsg->size);
     
     free_list(head);
     free(imsg);
