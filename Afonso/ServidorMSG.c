@@ -22,6 +22,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <signal.h>
+#include <fcntl.h>
 //#include <event.h>
 
 extern int errno;
@@ -201,7 +202,12 @@ void connect_peers(struct peers *head){
         inet_aton(aux->ip,&addr.sin_addr);
         addr.sin_port=htons(aux->tcp);
 
-        connect(aux->socket,(struct sockaddr *)&addr, sizeof(addr));
+        fcntl(aux->socket, F_SETFL, O_NONBLOCK);
+        ret=connect(aux->socket,(struct sockaddr *)&addr, sizeof(addr));
+        if(ret==-1){
+
+
+        }
 
         aux=aux->next;
     }
