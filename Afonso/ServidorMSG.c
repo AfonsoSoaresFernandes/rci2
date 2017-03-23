@@ -35,57 +35,57 @@ typedef struct List{
     struct MSG * head;
     struct MSG * tail;
     int size;
-    
+
 } List_msg;
 
 //Estrutura que guar as Mensagens e o sei relogio lógico
 typedef struct MSG{
     char message[141];
     int clock;
-    
+
     struct MSG * ptr;
-    
+
 }msg;
 
 //Função que Regista na Lista as Mensagens
 msg * RegMsg(msg * tail, char * message, int clock ){
     msg * new;
     new= (msg*)malloc(sizeof(msg));
-    
-    
+
+
     if  ((((tail->clock)-clock)<0) || (((tail->clock)-clock)==0)){
         new->clock=tail->clock + 1;
     }else{
         new->clock=clock;
     }
-    
-    
+
+
     strcpy(new->message, message);
     new->ptr=NULL;
-    
+
     tail->ptr=new;
     tail=new;
-    
+
     return tail;
 }
 
 //Função que remove da Lista as mensagens mais antigas
 void RemovMsg(msg * head){
     msg * old, *new;
-    
+
     old = head->ptr;
     new = old->ptr;
     head->ptr=new;
-    
+
     free(old);
-    
+
 }
 //Função que recebe uma string onde vai escrever TODAS as Mensagens
 void PrintMsg(msg* head, char * message){
-    
+
     msg * next;
     next= head->ptr;
-    
+
     strcpy(message, "SMESSAGES\n");
     while (next) {
         strcat(message, next->message);
@@ -99,11 +99,11 @@ void Print_n_Msg(msg* head, char * message, int n, int size){
     msg * next;
     next= head->ptr;
     n=size-n;
-    
+
     for (i=0; i<n; i++) {
         next= next->ptr;
     }
-    
+
     strcpy(message, "MESSAGES\n");
     while (next) {
         strcat(message, next->message);
@@ -146,7 +146,7 @@ typedef struct peers {
   char ip[16];
   int socket, tcp, udp;
   struct peers *next;
-}
+}peers;
 
 //INICIALIZA A LISTA DE PEERS.
 void init_list_peers( struct peers *head, char *info){
@@ -459,7 +459,7 @@ int main(int argc, char** argv){
           printf("%s\n",buffer);  //IMPRIMIR OS OUTROS SERVIDORES.
           */
           break;
-          
+
         case 4 : // ENCERRAR O PROGRAMA.
           printf("Programa encerrado por sua ordem\n");
 
@@ -516,8 +516,15 @@ int main(int argc, char** argv){
           memset((void*)AUX, (int)'\0',sizeof(AUX));
           strncpy(AUX, buffer+8,139);// COPIA O QUE VEM A SEGUIR AO PUBLISH.
           bufferlen=strlen(AUX)+1;// TAMANHO DA STRING MAIS O CARACTER DE TERMINAÇÃO
-          printf("\n\nPUBLIQUEIIIII: %s\n\n", AUX);
 
+          //GUARDA NA LISTA
+
+          AUX_peers=head->next;
+          while(AUX_peers){
+            /*write(AUX_peers->socket,,);*/
+
+            AUX_peers=AUX_peers->next;
+          }
           break;
         case 2:
           printf("\n\nmostrei mensagens\n\n");
