@@ -40,7 +40,7 @@ void kill_my_baby(int sig, pid_t child){
 typedef struct peers {
   char name[40];
   char ip[16];
-  int socket, tcp;
+  int socket, tcp, udp;
   struct peers *next;
 }
 
@@ -48,7 +48,6 @@ typedef struct peers {
 void init_list_peers( struct peers *head, char *info){
   char s[2]="\n", *AUX;
   struct peers *aux, *aux2;
-  int a;
 
 
   AUX=strtok(info, s);
@@ -69,7 +68,7 @@ void init_list_peers( struct peers *head, char *info){
       }
       aux=aux->next;
     }
-    sscanf(AUX,"%[^;];%[^;];%d;%d",aux->name,aux->ip,a,aux->tcp);
+    sscanf(AUX,"%[^;];%[^;];%d;%d",aux->name,aux->ip,aux->udp,aux->tcp);
   }
   aux->next=NULL;
 }
@@ -237,7 +236,11 @@ int main(int argc, char** argv){
   }
   head->next=NULL;
 
-  if(listen(fd2,5)==-1)exit(1);
+  if(listen(fd2,5)==-1){
+    printf("Erro na função listen\n");
+    exit(1);
+  }
+
 
   while(1){
     //LIMPA O SET DE FILE DESCRIPTORS
@@ -317,11 +320,20 @@ int main(int argc, char** argv){
 
               init_list_peers(head, buffer);
               connect_peers(head);
+
+              //FALTA AQUI FAZER UM SGET_MESSAGES;
             }
             REG_DONE=1;
             break;
         case 2 ://PEDIR A LISTA DE SERVIDORES REGISTADOS NO SI.
-          addrlen=sizeof(SI_ADDR);
+          AUX_peers=head->next;
+
+          printf("SERVERS \n",);
+          while(AUX_peers){
+            printf("%s;%s;%d;%d\n",AUX_peers->name,AUX_peers->ip,AUX_peers->udp,AUX_peers->tcp);
+            AUX_peers=AUX_peers->next;
+          }
+          /*addrlen=sizeof(SI_ADDR);
           ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,&addrlen);// ENVIAR O PEDIDO
 
           if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
@@ -341,10 +353,18 @@ int main(int argc, char** argv){
             printf("A função RECVFROM funciona mas não recebeu nada, tente outra vez\n");
           }
           printf("%s\n",buffer);  //IMPRIMIR OS OUTROS SERVIDORES.
+          */
           break;
-
+          
         case 4 : // ENCERRAR O PROGRAMA.
           printf("Programa encerrado por sua ordem\n");
+
+          //ENCERRA TODAS AS SOCKETS DOS SERVIDORES DE MENSAGENS.
+          AUX_peers=head->next;
+          while(AUX_peers!=NULL){
+            close(AUX_peers->socket);
+            AUX_peers=AUX_peers->next;
+          }
 
           //LIBERTAR RECURSOS ALOCADOS.(MEMÓRIA E SOCKETS)
           close(fd);
@@ -453,11 +473,8 @@ int main(int argc, char** argv){
     AUX_peers=AUX_peers->next;
   }
 
-  AUX_peers=head->next;
-  while(AUX_peers!=NULL){
-    free();
-    AUX_peers=AUX_peers->next;
-  }
+  //LIMPAR A LISTA DE MENSAGENS;
+
   close(fd);
   close(fd1);
   close(fd2);
