@@ -632,6 +632,7 @@ int main(int argc, char** argv){
             }
         }
     }
+    
     //ENCERRA TODAS AS SOCKETS
     AUX_peers=head->next;
     while(AUX_peers!=NULL){
