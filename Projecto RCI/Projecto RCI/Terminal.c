@@ -76,7 +76,7 @@ int main(int argc, /*const*/ char * argv[]) {
                 strcpy(SI_ip, argv[count+1]);
             }else if ((strcmp(argv[count], "-p"))==0){
                 SI_port = atoi(argv[count+1]);
-            }else if(((strcmp(argv[count], "-i"))!=0 ) || ((strcmp(argv[count], "-p"))==0)){
+            }else if(((strcmp(argv[count], "-i"))!=0 ) || ((strcmp(argv[count], "-p"))!=0)){
                 printf("Incorrect Appliction Calling\n ");
              exit(1);
             }
