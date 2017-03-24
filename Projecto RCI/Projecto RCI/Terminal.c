@@ -234,7 +234,7 @@ int main(int argc, /*const*/ char * argv[]) {
                 
                  addrlen=sizeof(SM_addr);
                 
-                n= recvfrom(SM_Sock,return_msg,141,0,(struct sockaddr*)&SM_addr, &addrlen);
+                n= recvfrom(SM_Sock,return_msg,28500,0,(struct sockaddr*)&SM_addr, &addrlen);
                 
                 if(n==-1){//error
                     printf("error: %s\n", strerror(errno));
