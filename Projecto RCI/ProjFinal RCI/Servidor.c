@@ -303,6 +303,8 @@ int main(int argc, char** argv){
     msg *first, *last;
     List_msg * imsg;
     int clock, function_select=0;
+    int limit, count, check=0, trash;
+    char command[40];
     
     struct hostent *h;
     int r;
@@ -370,6 +372,56 @@ int main(int argc, char** argv){
     r=10;
     
     //LER OS ARGUMENTOS DA IVOCAÇÃO DO PROGRAMA;
+    
+                                                                        //FIZ UMA RECOLHA DE DADOS COM MAIS PROTECÇÃO
+    if (argc==9 || argc==11 || argc==13 || argc==15 || argc==17) {
+        limit=argc-2;
+        for (count = 1; (count <= 7); count= (count + 2)) {
+            if(strcmp("-n",argv[count])==0){
+                sprintf(NAME ,"%s", argv[count+1]);
+                check++;
+            }
+            else if(strcmp("-j",argv[count])==0){
+                sprintf(IP, "%s", argv[count+1]);
+                check++;
+            }
+            else if(strcmp("-u",argv[count])==0){
+                UPT=atoi(argv[count+1]);
+                check++;
+            }
+            else if(strcmp("-t",argv[count])==0){
+                TPT=atoi(argv[count+1]);
+                check++;
+            }
+            
+        }
+        if (check<4) {
+            printf("Missing arguments!\nPlease try:\n-n name -j ip -u upt -t tpt\n");
+            exit(1);
+        }
+        for (count=9; (count<=limit); count=(count+2)) {
+            if(strcmp("-i",argv[count])==0){
+                inet_aton(argv[count+1], &SI_addr.sin_addr);
+            }
+            else if(strcmp("-p",argv[count])==0){
+                SI_addr.sin_port=htonl(atoi(argv[count+1]));
+            }
+            else if(strcmp("-m",argv[count])==0){
+                
+            }
+            else if(strcmp("-r",argv[count])==0){
+                r=atoi(argv[count+1]);
+            }
+
+        }
+    }else{
+        printf("Incorrect Appliction Calling\n ");
+        exit(1);
+    }
+    
+    
+    
+   /*
     for(i=1; i < argc; i++){
         strcpy(buffer,argv[i]);
         if(strcmp("-n",argv[i])==0){
@@ -396,7 +448,7 @@ int main(int argc, char** argv){
         else if(strcmp("-r",argv[i])==0){
             r=atoi(argv[i+1]);
         }
-    }
+    }*/
     
     //CRIA A SOCKET UDP POR ONDE COMUNICA COM O S.I.
     if((fd=socket(AF_INET, SOCK_DGRAM,0))==-1){
@@ -495,19 +547,44 @@ int main(int argc, char** argv){
         if(FD_ISSET(0, &socket_set)){
             memset((void*)buffer,'\0',sizeof(buffer));
             fgets( buffer, 141, stdin); //ORDEM DO UTILIZADOR.
-            flag=0;//DESTINGUIR ENTRE COMANDOS
-            if(strcmp(buffer, "join\n")==0){
+            sscanf(buffer, "%s %d",command,&trash);
+            flag=5;//DESTINGUIR ENTRE COMANDOS
+            if(strcmp(command, "join")==0){
                 flag=1;
+                if (strlen(buffer)>5) {                                //ERROR COMMAND CALL
+                    printf("Bad Command Call!\nPlease try: join\n");
+                    flag = 0;
+                }
+                
                 printf("INTRUÇÃO DADA: join\n");
-            }else if(strcmp(buffer,"show_servers\n")==0){
-                flag=2;
+            }else if(strcmp(command,"show_servers")==0){
+                 flag=2;
+                if (strlen(buffer)>13) {                                //ERROR COMMAND CALL
+                    printf("Bad Command Call!\nPlease try: show_servers\n");
+                    flag = 0;
+                }
+               
                 printf("INTRUÇÃO DADA:  show_servers\n");
-            }else if(strcmp("show_messages\n", buffer)==0){
+            }else if(strcmp("show_messages", command)==0){
                 flag=3;
+                if (strlen(buffer)>14) {                                //ERROR COMMAND CALL
+                    printf("Bad Command Call!\nPlease try: show_messages\n");
+                    flag = 0;
+                }
+                
                 printf("INTRUÇÃO DADA:  show_messages\n");
-            }else if(strcmp("exit\n", buffer)==0){
+            }else if(strcmp("exit", command)==0){
                 flag=4;
+                if (strlen(buffer)>5) {                                //ERROR COMMAND CALL
+                    printf("Bad Command Call!\nPlease try: exit\n");
+                    flag = 0;
+                }
+                
                 printf("INTRUÇÃO DADA:  exit\n");
+            }
+            
+            if (flag==5) {
+                printf("Command Not Found!\nPlease try:\njoin\nshow_servers\nshow_messages\nexit\n");
             }
             
             //DIRECIONA PARA O COMANDO CERTO E EXECUTA
