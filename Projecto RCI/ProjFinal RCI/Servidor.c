@@ -780,6 +780,7 @@ int main(int argc, char** argv){
                     }
                     
                     
+                                            //FAZER BROADCAST !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     AUX_peers=head->next;
                     while(AUX_peers){
                         /*write(AUX_peers->socket,,);*/
@@ -788,6 +789,8 @@ int main(int argc, char** argv){
                     }
                     break;
                 case 2:
+                    
+                                        //FALTA RECEBER O NUMERO DE MENSAGENS!!!!!!!!!!!!!!!!!!!!
                     printf("\n\nmostrei mensagens\n\n");
                     addrlen=sizeof(AUX_addr);
                     
