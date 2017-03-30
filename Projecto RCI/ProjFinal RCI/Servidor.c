@@ -364,7 +364,7 @@ int main(int argc, char** argv){
     //INICIALIZA O ADDR DE RECEÇÃO DO SI.
     memset((void*)&SI_addr,(int)'\0',sizeof(SI_addr));
     SI_addr.sin_family=AF_INET;
-    inet_aton("193.136.138.142", &SI_addr.sin_addr);//  TRANFORMA O IP DO SI EM ADDR
+    inet_aton("194.210.178.206", &SI_addr.sin_addr);//  TRANFORMA O IP DO SI EM ADDR
     SI_addr.sin_port=htons(59000);//PORTO ONDE O SI RECEBE
     
     //VALOR PREDEFINIDO
@@ -374,7 +374,7 @@ int main(int argc, char** argv){
     //LER OS ARGUMENTOS DA IVOCAÇÃO DO PROGRAMA;
     
                                                                         //FIZ UMA RECOLHA DE DADOS COM MAIS PROTECÇÃO
-    if (argc==9 || argc==11 || argc==13 || argc==15 || argc==17) {
+   if (argc==9 || argc==11 || argc==13 || argc==15 || argc==17) {
         limit=argc-2;
         for (count = 1; (count <= 7); count= (count + 2)) {
             if(strcmp("-n",argv[count])==0){
@@ -517,13 +517,13 @@ int main(int argc, char** argv){
         FD_ZERO(&socket_set);
         
         //INTRODUZ OS FILE DESCRIPTORS DOS SERVIDORES E TECLADO NO SET.
-        FD_SET(0,&socket_set);
+        FD_SET(0,&socket_set);  //TECLADO
         maxfd=0;
-        FD_SET(fd,&socket_set);
+        FD_SET(fd,&socket_set); //SI
         maxfd=max(maxfd,fd);
-        FD_SET(fd1,&socket_set);
+        FD_SET(fd1,&socket_set);    //CLIENT
         maxfd=max(maxfd,fd1);
-        FD_SET(fd2,&socket_set);
+        FD_SET(fd2,&socket_set);    //TCP
         maxfd=max(maxfd,fd2);
         
         //INTRODUZ AS SOCKETS TCP DOS PEERS NO SET.
@@ -592,6 +592,8 @@ int main(int argc, char** argv){
                 case 1 ://REGISTAR O SERVIDOR NO SI.
                     //DA PRIMEIRA VEZ QUE FAZ JOIN INICIALIZA A LISTA DE PEERS.
                     if(REG_DONE==0){
+                        function_select=1;
+
                         addrlen=sizeof(SI_addr);
                         ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,addrlen);// ENVIAR O PEDIDO
                         
@@ -602,7 +604,7 @@ int main(int argc, char** argv){
                         }else if(ret==0){
                             printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
                         }
-                        /*
+                        
                          addrlen=sizeof(AUX_addr);
                          ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);
                          
@@ -615,7 +617,19 @@ int main(int argc, char** argv){
                          init_list_peers(head, buffer);
                          //Conectar aos Servidores
                          connect_peers(head);
-                         */
+                        
+                                //GETS ALL MESSAGES FROM THE FIRST SERVER OF THE LIST
+                       // Get_message_peers(imsg, imsg->head,imsg->tail, head->next->socket, function_select);
+                        function_select=0;
+                        
+                        //VERIFICAÇÃO DO TAMANHO DA LISTA
+                        if (imsg->size>200) {
+                            RemovMsg(imsg->head);
+                            imsg->size--;
+                        }
+
+                        
+                        
                         //FALTA AQUI FAZER UM SGET_MESSAGES;
                     }
                     REG_DONE=1;
@@ -701,7 +715,7 @@ int main(int argc, char** argv){
         }
         
         if(FD_ISSET(fd, &socket_set)){
-            function_select=1;
+            //function_select=1;
             addrlen=sizeof(AUX_addr);
             ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);
             
@@ -710,7 +724,7 @@ int main(int argc, char** argv){
                 printf("error: %s\n", strerror(errno));
                 exit(1);
             }
-                            //Inicializa a Lista de Servidores
+            /*                //Inicializa a Lista de Servidores
             init_list_peers(head, buffer);
                                 //Conectar aos Servidores
             connect_peers(head);
@@ -721,7 +735,7 @@ int main(int argc, char** argv){
             if (imsg->size>200) {
                 RemovMsg(imsg->head);
                 imsg->size--;
-            }
+            }*/
             
             
         }
@@ -796,7 +810,7 @@ int main(int argc, char** argv){
                     
                     Print_n_Msg(imsg->head, Client_message, n, imsg->size);
                     
-                    ret=sendto(fd,Client_message,bufferlen,0,(struct sockaddr*)&AUX_addr,&addrlen);
+                    ret=sendto(fd,Client_message,bufferlen,0,(struct sockaddr*)&AUX_addr,addrlen);
                     
                     if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
                         printf("error: %s\n", strerror(errno));
@@ -823,7 +837,6 @@ int main(int argc, char** argv){
             }
             AUX_peers->next=(struct peers *)malloc(sizeof(struct peers));
             if(AUX_peers->next==NULL){
-                printf("");
             }
             AUX_peers=AUX_peers->next;
             AUX_peers->socket=newfd;
