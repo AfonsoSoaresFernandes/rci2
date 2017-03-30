@@ -62,14 +62,14 @@ int main(void){
      
      inet_aton("192.168.1.97",&iaddr);
      
-     /*if ((h = gethostbyname("macbook-de-rodrigo-lopes-do-o-barbosa-2.local"))==NULL) {    //GET HOST NAME
+     if ((h = gethostbyname("macbook-de-rodrigo-lopes-do-o-barbosa-2.local"))==NULL) {    //GET HOST NAME
      printf("error: %s\n", strerror(errno));
      exit(1);
      }
-     
+    
      a=(struct in_addr*)h->h_addr_list[0];
      
-     */
+    
      
      fd=socket(AF_INET,SOCK_DGRAM,0); //UDP SOCKET
      

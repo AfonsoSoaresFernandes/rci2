@@ -66,7 +66,7 @@ int main(int argc, /*const*/ char * argv[]) {
     unsigned long n_charecters;
     
     
-      strcpy(SI_ip, "193.136.138.142");
+      strcpy(SI_ip, "194.210.178.16");
     
                                                     //TRATAMENTO DE DADOS DE ENTRADA
      if (argc == 1 || argc == 3 || argc == 5 ) {
@@ -103,7 +103,7 @@ int main(int argc, /*const*/ char * argv[]) {
     SI_addr.sin_port=htons(SI_port);
     
     
-    strcpy(SM_ip, "192.168.1.97");
+    strcpy(SM_ip, "194.1210.178.16");
     inet_aton(SM_ip,&iSM_addr);
     SM_port = 9000;
     
@@ -142,17 +142,25 @@ int main(int argc, /*const*/ char * argv[]) {
                                                 //PUBLISH
         if((strcmp("publish", command))==0){
             
-            aux_message = strstr(buffer, " ");
-            n_charecters = strlen(aux_message);         //VERIFICAR NUMERO DE CARACTERES
-            
-            if (n_charecters <= 142) {
-                strcpy(message, (aux_message+1));
-                n_charecters--;
-                flag=2;
+            if (strlen(buffer)<9) {
+                printf("Please Try: pubish 'message you want to send'\n");
+                flag=0;
             }else{
-            printf("Too many characters!\nMaximum number of charecters is 140.\n");
-            flag = 0;
+                aux_message = strstr(buffer, " ");
+                n_charecters = strlen(aux_message);         //VERIFICAR NUMERO DE CARACTERES
+                
+                if (n_charecters <= 142) {
+                    strcpy(message, (aux_message+1));
+                    n_charecters--;
+                    flag=2;
+                }else{
+                    printf("Too many characters!\nMaximum number of charecters is 140.\n");
+                    flag = 0;
+                }
+
             }
+            
+            
         }
                                                         //SHOW_LATEST_MESSAGES
         if(strcmp("show_latest_messages", command)==0){
@@ -193,7 +201,7 @@ int main(int argc, /*const*/ char * argv[]) {
                 
                 addrlen=sizeof(SI_addr);
                 
-                n= recvfrom(SI_Sock,return_msg ,300,0,(struct sockaddr*)&SI_addr, &addrlen);
+                n= recvfrom(SI_Sock,return_msg ,1000,0,(struct sockaddr*)&SI_addr, &addrlen);
                 
                 if(n==-1){                                      //ERROR
                     printf("error: %s\n", strerror(errno));

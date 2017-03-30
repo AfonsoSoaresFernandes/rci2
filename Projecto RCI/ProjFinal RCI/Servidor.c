@@ -285,10 +285,10 @@ void Get_message_peers(List_msg * imsg, msg * head, msg* tail, int socket, int f
     while (token) {
         sscanf(buffer, "%d;%s",&logic_clock, message);
         if (tail==NULL) {
-            RegMsg(head, message, logic_clock);
+            tail=RegMsg(head, message, logic_clock);
             imsg->size++;
         }else{
-            RegMsg(tail, message, logic_clock);
+            tail=RegMsg(tail, message, logic_clock);
             imsg->size++;
         }
         
@@ -367,7 +367,7 @@ int main(int argc, char** argv){
     //INICIALIZA O ADDR DE RECEÇÃO DO SI.
     memset((void*)&SI_addr,(int)'\0',sizeof(SI_addr));
     SI_addr.sin_family=AF_INET;
-    inet_aton("194.210.178.206", &SI_addr.sin_addr);//  TRANFORMA O IP DO SI EM ADDR
+    inet_aton("194.210.178.16", &SI_addr.sin_addr);//  TRANFORMA O IP DO SI EM ADDR
     SI_addr.sin_port=htons(59000);//PORTO ONDE O SI RECEBE
     
     //VALOR PREDEFINIDO
@@ -377,7 +377,7 @@ int main(int argc, char** argv){
     //LER OS ARGUMENTOS DA IVOCAÇÃO DO PROGRAMA;
     
     //FIZ UMA RECOLHA DE DADOS COM MAIS PROTECÇÃO
-    /*  if (argc==9 || argc==11 || argc==13 || argc==15 || argc==17) {
+      if (argc==9 || argc==11 || argc==13 || argc==15 || argc==17) {
      limit=argc-2;
      for (count = 1; (count <= 7); count= (count + 2)) {
      if(strcmp("-n",argv[count])==0){
@@ -421,7 +421,7 @@ int main(int argc, char** argv){
      printf("Incorrect Appliction Calling\n ");
      exit(1);
      }
-     */
+    
     
     
     /*
@@ -624,7 +624,7 @@ int main(int argc, char** argv){
                     REG_DONE=1;
                     
                     addrlen=sizeof(SI_addr);
-                    sprintf(buffer,"REG %s;%s;%d;%d", NAME,"127.0.1.1" /*IP*/, UPT, TPT);
+                    sprintf(buffer,"REG %s;%s;%d;%d", NAME,"194.210.178.16" /*IP*/, UPT, TPT);
                     bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
                     ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
                     
@@ -718,7 +718,7 @@ int main(int argc, char** argv){
             //Conectar aos Servidores
             connect_peers(head);
             //GETS ALL MESSAGES FROM THE FIRST SERVER OF THE LIST
-            Get_message_peers(imsg, imsg->head,imsg->tail, head->next->socket, function_select);
+            //Get_message_peers(imsg, imsg->head,imsg->tail, head->next->socket, function_select);
             function_select=0;
             //VERIFICAÇÃO DO TAMANHO DA LISTA
             if (imsg->size>200) {
@@ -731,6 +731,7 @@ int main(int argc, char** argv){
         // IF QUE PROCESSA OS PEDIDOS DOS TERMINAIS/CLIENTS
         if(FD_ISSET(fd1, &socket_set)){
             addrlen=sizeof(AUX_addr);
+            memset((void*)buffer, (int)'\0',160);
             ret=recvfrom(fd1, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);  //RECEBER PEDIDO DE CLIENT.
             
             // VERIFICAR RECEÇÃO DE DADOS.
@@ -764,15 +765,16 @@ int main(int argc, char** argv){
                     clock = 0;
                     memset((void*)AUX, (int)'\0',sizeof(AUX));
                     strncpy(AUX, buffer+8,139);// COPIA O QUE VEM A SEGUIR AO PUBLISH.
+                   // strncpy()
                     bufferlen=strlen(AUX)+1;// TAMANHO DA STRING MAIS O CARACTER DE TERMINAÇÃO
                     
                     //GUARDA NA LISTA
                     
                     if (imsg->tail==NULL) {
-                        RegMsg(imsg->head, AUX, clock);
+                        imsg->tail=RegMsg(imsg->head, AUX, clock);
                         imsg->size++;
                     }else{
-                        RegMsg(imsg->tail, AUX, clock);
+                        imsg->tail=RegMsg(imsg->tail, AUX, clock);
                         imsg->size++;
                     }
                     //VERIFICAÇÃO DO TAMANHO DA LISTA
@@ -798,8 +800,10 @@ int main(int argc, char** argv){
                     addrlen=sizeof(AUX_addr);
                     
                     Print_n_Msg(imsg->head, Client_message, n, imsg->size);
+                   
+                    bufferlen=strlen(Client_message);
                     
-                    ret=sendto(fd,Client_message,bufferlen,0,(struct sockaddr*)&AUX_addr,addrlen);
+                    ret=sendto(fd1,Client_message,bufferlen,0,(struct sockaddr*)&AUX_addr,addrlen);
                     
                     if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
                         printf("error: %s\n", strerror(errno));
@@ -849,7 +853,7 @@ int main(int argc, char** argv){
         //DEPOIS DE SE REGISTAR UMA VEZ COM O S.I. FAZ REGISTOS PERIODICOS
         if(REG_DONE==1){
             addrlen=sizeof(SI_addr);
-            sprintf(buffer,"REG %s;%s;%d;%d", NAME,"127.0.1.1" /*IP*/, UPT, TPT);
+            sprintf(buffer,"REG %s;%s;%d;%d", NAME,"194.210.178.16" /*IP*/, UPT, TPT);
             bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
             ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
             
