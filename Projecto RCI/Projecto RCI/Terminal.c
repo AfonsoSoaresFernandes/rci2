@@ -66,7 +66,7 @@ int main(int argc, /*const*/ char * argv[]) {
     unsigned long n_charecters;
     
     
-      strcpy(SI_ip, "194.210.178.16");
+      strcpy(SI_ip, "192.168.1.3");
     
                                                     //TRATAMENTO DE DADOS DE ENTRADA
      if (argc == 1 || argc == 3 || argc == 5 ) {
@@ -103,7 +103,7 @@ int main(int argc, /*const*/ char * argv[]) {
     SI_addr.sin_port=htons(SI_port);
     
     
-    strcpy(SM_ip, "194.1210.178.16");
+    strcpy(SM_ip, "192.168.1.3");
     inet_aton(SM_ip,&iSM_addr);
     SM_port = 9000;
     

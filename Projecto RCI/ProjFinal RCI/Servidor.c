@@ -131,7 +131,7 @@ void Print_n_Msg(msg* head, char * message, int n, int size){
 }
 
 
-//FUNÇÃO QUE APAGA LISTA
+//FUNÇÃO QUE APAGA LISTA de Mensagens
 void free_list(msg *head) {
     msg *prev = head;
     msg *cur = head;
@@ -164,32 +164,36 @@ typedef struct peers {
 }peers;
 
 //INICIALIZA A LISTA DE PEERS.
-void init_list_peers( struct peers *head, char *info){
+void init_list_peers( struct peers *head, char *info, char *ip, int tpt){
     char s[2]="\n", *AUX;
-    struct peers *aux;
+    struct peers *aux, aux1;
     
     
     AUX=strtok(info, s);
     
     while((AUX=strtok(NULL, s))!=NULL){
-        if(head->next==NULL){
-            head->next=(struct peers *)malloc(sizeof(struct peers));
+        sscanf(AUX,"%[^;];%[^;];%d;%d",aux1.name,aux1.ip,&aux1.udp,&aux1.tcp);
+        if(strcmp(aux1.ip, ip)!=0 || aux1.tcp!=tpt ){
             if(head->next==NULL){
-                printf("lista de peers mal criada\n");
-                exit(1);
+                head->next=(struct peers *)malloc(sizeof(struct peers));
+                if(head->next==NULL){
+                    printf("lista de peers mal criada\n");
+                    exit(1);
+                }
+                aux=head->next;
+            }else{
+                aux->next=(struct peers*)malloc(sizeof(struct peers));
+                if(aux->next==NULL){
+                    printf("lista de peers mal criada\n");
+                    exit(1);
+                }
+                aux=aux->next;
             }
-            aux=head->next;
-        }else{
-            aux->next=(struct peers*)malloc(sizeof(struct peers));
-            if(aux->next==NULL){
-                printf("lista de peers mal criada\n");
-                exit(1);
-            }
-            aux=aux->next;
+            sscanf(AUX,"%[^;];%[^;];%d;%d",aux->name,aux->ip,&aux->udp,&aux->tcp);
+            printf("estou a ligar -me a:\n nome %s\n ip %s\n udp %d\ntcp %d\n",aux->name,aux->ip,aux->udp,aux->tcp);
+            aux->next=NULL;
         }
-        sscanf(AUX,"%[^;];%[^;];%d;%d",aux->name,aux->ip,&aux->udp,&aux->tcp);
-        printf("estou a ligar -me a:\n nome %s\n ip %s\n udp %d\ntcp %d\n",aux->name,aux->ip,aux->udp,aux->tcp);
-        aux->next=NULL;
+        
     }
     
 }
@@ -222,6 +226,41 @@ void connect_peers(struct peers *head){
         printf("Fiz um connect\n");
         aux=aux->next;
     }
+}
+
+//PREENCHE A ESTRUTURA COM A INFO DO PEER DA SOCKET CORRESPONDENTE.
+void get_info_peers(struct peers *head,char *info){
+    char s[2]="\n", *AUX;
+    struct peers *aux, aux1;
+    
+    aux=head->next;
+    while(aux!=NULL){
+        if(strcmp("empty",aux->name)==0){
+            AUX=strtok(info, s);
+            while((AUX=strtok(NULL, s))!=NULL){
+                sscanf(AUX,"%[^;];%[^;];%d;%d",aux1.name,aux1.ip,&aux1.udp,&aux1.tcp);
+                if(strcmp(aux1.ip,aux->ip)==0){
+                    aux->udp=aux1.udp;
+                    aux->tcp=aux1.tcp;
+                    strcpy(aux->name,aux1.name);
+                }
+            }
+        }
+        aux=aux->next;
+    }
+}
+
+//REMOVE DA LISTA UM PEER QUE FICOU OFFLINE.
+void remove_peer(struct peers *head, struct peers *removal){
+    struct peers *aux;
+    
+    close(removal->socket);
+    aux=head;
+    while(removal!=aux->next){
+        aux=aux->next;
+    }
+    aux->next=removal->next;
+    free(removal);
 }
 
 
@@ -297,6 +336,17 @@ void Get_message_peers(List_msg * imsg, msg * head, msg* tail, int socket, int f
     
 }
 
+//FUNÇÃO QUE APAGA LISTA de PEERS
+void free_list_peers(peers *head) {
+    peers *prev = head;
+    peers *cur = head;
+    while(cur) {
+        prev = cur;
+        cur = prev->next;
+        free(prev);
+    }
+}
+
 
 
 
@@ -307,12 +357,18 @@ int main(int argc, char** argv){
     List_msg * imsg;
     int clock, function_select=0;
     int limit, count, check=0, trash;
-    char command[40];
+    char command[40], messages[160];
+    char s[2]="\n";
+    char * messages_aux;
     
     struct hostent *h;
     int r;
     int n;
-    int fd ,fd1 ,fd2 , ret, addrlen=0, bufferlen=0, UPT=0, TPT=0, flag, i, maxfd, REG_DONE=0, newfd;
+    unsigned long bufferlen=0;
+    int fd ,fd1 ,fd2 , ret, addrlen=0, UPT=0, TPT=0, flag, i, maxfd, REG_DONE=0, newfd, first_time=0, nbytes, nwritten;
+    int nleft, nread;
+    char SI_IP[20]="192.168.1.3";
+    char *ptr, *ptr1;
     char buffer[300], NAME[50], IP[20], MESSAGE[140], AUX[140], allmsg[28500], Client_message[28500];
     struct sockaddr_in UDP_addr, SI_addr, TCP_addr, AUX_addr;
     struct in_addr *a;
@@ -367,7 +423,7 @@ int main(int argc, char** argv){
     //INICIALIZA O ADDR DE RECEÇÃO DO SI.
     memset((void*)&SI_addr,(int)'\0',sizeof(SI_addr));
     SI_addr.sin_family=AF_INET;
-    inet_aton("194.210.178.16", &SI_addr.sin_addr);//  TRANFORMA O IP DO SI EM ADDR
+    inet_aton(SI_IP, &SI_addr.sin_addr);//  TRANFORMA O IP DO SI EM ADDR
     SI_addr.sin_port=htons(59000);//PORTO ONDE O SI RECEBE
     
     //VALOR PREDEFINIDO
@@ -423,39 +479,10 @@ int main(int argc, char** argv){
      }
     
     
-    
-    /*
-     for(i=1; i < argc; i++){
-     strcpy(buffer,argv[i]);
-     if(strcmp("-n",argv[i])==0){
-     sprintf(NAME ,"%s", argv[i+1]);
-     }
-     else if(strcmp("-j",argv[i])==0){
-     sprintf(IP, "%s", argv[i+1]);
-     }
-     else if(strcmp("-u",argv[i])==0){
-     UPT=atoi(argv[i+1]);
-     }
-     else if(strcmp("-t",argv[i])==0){
-     TPT=atoi(argv[i+1]);
-     }
-     else if(strcmp("-i",argv[i])==0){
-     inet_aton(argv[i+1], &SI_addr.sin_addr);
-     }
-     else if(strcmp("-p",argv[i])==0){
-     SI_addr.sin_port=htonl(atoi(argv[i+1]));
-     }
-     else if(strcmp("-m",argv[i])==0){
-     
-     }
-     else if(strcmp("-r",argv[i])==0){
-     r=atoi(argv[i+1]);
-     }
-     }*/
-    
     //CRIA A SOCKET UDP POR ONDE COMUNICA COM O S.I.
     if((fd=socket(AF_INET, SOCK_DGRAM,0))==-1){
         printf("Erro na criação da SOCKET\n");
+        printf("Error: %s",strerror(errno));
         exit(2);
     }
     printf("SOCKET SI UDP: SUCESS\n");
@@ -464,6 +491,7 @@ int main(int argc, char** argv){
     //CRIA A SOCKET UDP POR ONDE CHEGAM OS PEDIDOS DE LIGAÇÃO DE CLIENTS.
     if((fd1=socket(AF_INET, SOCK_DGRAM,0))==-1){
         printf("Erro na criação da SOCKET\n");
+        printf("Error: %s",strerror(errno));
         exit(2);
     }
     printf("SOCKET CLIENT UDP: SUCESS\n");
@@ -471,6 +499,7 @@ int main(int argc, char** argv){
     //CRIA A SOCKET TCP POR ONDE VAI RECEBER PEDIDOS DE LIGAÇÃO DE OUTROS SERVIDORES DE MENSAGENS
     if((fd2=socket(AF_INET, SOCK_STREAM,0))==-1){
         printf("Erro na criação SOCKET\n");
+        printf("Error: %s",strerror(errno));
         exit(2);
     }
     printf("SOCKET SM TCP: SUCESS\n");
@@ -490,6 +519,7 @@ int main(int argc, char** argv){
     //LIGA A SOCKET AO ADDR DO SERVER UDP COM O BIND
     if(bind(fd1,(struct sockaddr*)&UDP_addr,sizeof(UDP_addr))==-1){
         printf("Não foi possivel fazer o BIND  da SOCKET\n");
+        printf("Error: %s",strerror(errno));
         exit(2);
     }
     printf("BIND SERVER UDP:   SUCESS\n");
@@ -497,6 +527,7 @@ int main(int argc, char** argv){
     //LIGA A SOCKET AO ADDR DO SERVER TCP COM O BIND
     if(bind(fd2,(struct sockaddr*)&TCP_addr,sizeof(TCP_addr))==-1){
         printf("Não foi possivel fazer o BIND  da SOCKET\n");
+        printf("Error: %s",strerror(errno));
         exit(2);
     }
     printf("BIND SERVER TCP:   SUCESS\n");
@@ -508,9 +539,12 @@ int main(int argc, char** argv){
         exit(1);
     }
     head->next=NULL;
+    
+    //SERVIDOR TCP FICA À ESCUTA.
     flag=listen(fd2,5);
     if(flag==-1){
         printf("Erro na função listen\n");
+        printf("Error: %s",strerror(errno));
         exit(1);
     }
     
@@ -605,36 +639,22 @@ int main(int argc, char** argv){
                         }else if(ret==0){
                             printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
                         }
+                        REG_DONE=1;
                         
-                        addrlen=sizeof(AUX_addr);
-                        ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);
+                        addrlen=sizeof(SI_addr);
+                        sprintf(buffer,"REG %s;%s;%d;%d", NAME, IP, UPT, TPT);
+                        bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
+                        ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
                         
-                        //ERROR
-                        if(ret==-1){
+                        if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
+                            printf("O enviu de dados falhou, SEND TO deu erro\n");
                             printf("error: %s\n", strerror(errno));
-                            exit(1);
+                            exit(3);
                         }
-                        //Inicializa a Lista de Servidores
-                        init_list_peers(head, buffer);
-                        //Conectar aos Servidores
-                        connect_peers(head);
+                        else if(ret==0){
+                            printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
+                        }
                         
-                        //FALTA AQUI FAZER UM SGET_MESSAGES;
-                    }
-                    REG_DONE=1;
-                    
-                    addrlen=sizeof(SI_addr);
-                    sprintf(buffer,"REG %s;%s;%d;%d", NAME,"194.210.178.16" /*IP*/, UPT, TPT);
-                    bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
-                    ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
-                    
-                    if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
-                        printf("O enviu de dados falhou, SEND TO deu erro\n");
-                        printf("error: %s\n", strerror(errno));
-                        exit(3);
-                    }else if(ret==0){
-                        printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
-                    }
                     break;
                 case 2 ://PEDIR A LISTA DE SERVIDORES REGISTADOS NO SI.
                     AUX_peers=head->next;
@@ -644,29 +664,7 @@ int main(int argc, char** argv){
                         printf("%s;%s;%d;%d\n",AUX_peers->name,AUX_peers->ip,AUX_peers->udp,AUX_peers->tcp);
                         AUX_peers=AUX_peers->next;
                     }
-                    /*addrlen=sizeof(SI_ADDR);
-                     ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,&addrlen);// ENVIAR O PEDIDO
-                     
-                     if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
-                     printf("O enviu de dados falhou, SEND TO deu erro\n");
-                     exit(3);
-                     }else if(ret==0){
-                     printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
-                     }
-                     
-                     addrlen=sizeof(AUX_addr);
-                     ret=recvfrom(fd, buffer,300,0,(struct sockaddr*)&AUX_addr, &addrlen);  //RECEBER RESPOSTA.
-                     
-                     if(ret==-1){  //VERIFICAR A RECEÇÃO DE DADOS.
-                     printf("A receção de dados falhou, RECVFROM deu erro\n");
-                     exit(3);
-                     }else if(ret==0){
-                     printf("A função RECVFROM funciona mas não recebeu nada, tente outra vez\n");
-                     }
-                     printf("%s\n",buffer);  //IMPRIMIR OS OUTROS SERVIDORES.
-                     */
                     break;
-                    
                 case 3 :
                     
                     
@@ -685,6 +683,10 @@ int main(int argc, char** argv){
                         AUX_peers=AUX_peers->next;
                     }
                     
+                        free_list_peers(head);
+                        
+                        free_list(imsg->head);
+                    
                     //LIBERTAR RECURSOS ALOCADOS.(MEMÓRIA E SOCKETS)
                     close(fd);
                     close(fd1);
@@ -692,7 +694,7 @@ int main(int argc, char** argv){
                     
                     
                     
-                    //FALTA FAZER O FREE DAS STRINGS!!!
+                    //FALTA FAZER O FREE DAS STRINGS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     
                     
                     
@@ -713,12 +715,22 @@ int main(int argc, char** argv){
                 printf("error: %s\n", strerror(errno));
                 exit(1);
             }
-            //Inicializa a Lista de Servidores
-            init_list_peers(head, buffer);
-            //Conectar aos Servidores
-            connect_peers(head);
-            //GETS ALL MESSAGES FROM THE FIRST SERVER OF THE LIST
-            //Get_message_peers(imsg, imsg->head,imsg->tail, head->next->socket, function_select);
+            
+            if(REG_DONE==1 && first_time==0){
+                first_time=1;
+                //Inicializa a Lista de Servidores
+                init_list_peers(head, buffer, IP, TPT);
+                //Conectar aos Servidores
+                connect_peers(head);
+                
+                //FALTA AQUI FAZER UM SGET_MESSAGES;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                
+            }
+            else {
+                get_info_peers(head, buffer);
+            }
+            
+            
             function_select=0;
             //VERIFICAÇÃO DO TAMANHO DA LISTA
             if (imsg->size>200) {
@@ -743,7 +755,6 @@ int main(int argc, char** argv){
             
             //SABER  QUE CLIENT FALOU.
             if((h=gethostbyaddr(&AUX_addr.sin_addr,sizeof(AUX_addr.sin_addr),AF_INET))==NULL){
-                printf("MAIS UM ERRO\n OLHÒ FOGUETE\n");
                 printf("error: %s\n", strerror(errno));
             }else{
                 printf("sent by [%s:%hu]\n",h->h_name,ntohs(AUX_addr.sin_port));
@@ -824,59 +835,129 @@ int main(int argc, char** argv){
                 
             }
             
+            //PERCORRE A LISTA ATÉ AO FIM
             AUX_peers=head;
             while(AUX_peers->next!=NULL){
                 AUX_peers=AUX_peers->next;
             }
+            //ALOCA MEMORIA PARA UM PEER.
             AUX_peers->next=(struct peers *)malloc(sizeof(struct peers));
             if(AUX_peers->next==NULL){
                 printf("erro de memoria");
             }
             AUX_peers=AUX_peers->next;
+            AUX_peers->next=NULL;
+            
+            //PREENCHE A ESTRUTURA COM OS DADOS DO PEER DISPONIVEIS: IP
+            strncpy(AUX_peers->name,"empty\0",6);
             AUX_peers->socket=newfd;
-        }
-        
-        //CICLO QUE PROCESSA MENSAGENS RECEBIDAS DE OUTROS S.M. JA DENTRO DA CONEXAO TCP.
-        AUX_peers=head->next;
-        while(AUX_peers!=NULL){
-            if(FD_ISSET(AUX_peers->socket, &socket_set)){
-                //LER As MENSAGENS QUE OS PEERS LHE ESTAO A MANDAR E QUE SAO SUPOSTAMENTE NOVAS.
-                function_select=0;
-                
-                Get_message_peers(imsg, imsg->head, imsg->tail, AUX_peers->socket, function_select);
-                
-                
-            }
-            AUX_peers=AUX_peers->next;
-        }
-        
-        //DEPOIS DE SE REGISTAR UMA VEZ COM O S.I. FAZ REGISTOS PERIODICOS
-        if(REG_DONE==1){
+            strcpy(AUX_peers->ip,inet_ntoa(AUX_addr.sin_addr));
             addrlen=sizeof(SI_addr);
-            sprintf(buffer,"REG %s;%s;%d;%d", NAME,"194.210.178.16" /*IP*/, UPT, TPT);
-            bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
-            ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
+            
+            //PEDE INFORMAÇÃO AO SI PARA CONFIRMAR O PEER.
+            ret=sendto(fd,"GET_SERVERS",11,0,(struct sockaddr*)&SI_addr,addrlen);// ENVIAR O PEDIDO
             
             if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
                 printf("O enviu de dados falhou, SEND TO deu erro\n");
                 printf("error: %s\n", strerror(errno));
                 exit(3);
+            }else if(ret==0){
+                printf("A função SEND TO funciona mas não enviou nada, tente outra vez\n");
             }
+            
+            
         }
+            
+            //DEPOIS DE SE REGISTAR UMA VEZ COM O S.I. FAZ REGISTOS PERIODICOS
+            if(REG_DONE==1){
+                addrlen=sizeof(SI_addr);
+                sprintf(buffer,"REG %s;%s;%d;%d", NAME, IP, UPT, TPT);
+                bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
+                ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
+                
+                if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
+                    printf("O enviu de dados falhou, SEND TO deu erro\n");
+                    printf("error: %s\n", strerror(errno));
+                    exit(3);
+                }
+            }
+            //PRECORRE A LISTA DE SOCKETS TCP PARA LER.
+            AUX_peers=head->next;
+            while(AUX_peers!=NULL){
+                if(FD_ISSET(AUX_peers->socket, &socket_set)){
+                    flag=0;
+                    nbytes=160;
+                    ptr=messages;
+                    nleft=nbytes;
+                    
+                    while(nleft>0){
+                        nread=read(fd,ptr,nleft);
+                        if(nread==-1){      //error
+                            printf("error: %s\n", strerror(errno));
+                            exit(1);
+                        }else if(nread==0){ //closed by peer
+                            break;
+                        }
+                        
+                        for(i=0; i<nread; i++){
+                            ptr1=ptr+i;
+                            if(strncmp(ptr1,"\n",1)==0){
+                                flag++;
+                                if(flag==2)nleft=-1000;
+                            }
+                            else{
+                                flag=0;
+                            }
+                        }
+                        nleft-=nread;
+                        ptr+=nread;
+                    }
+                    
+                    //PROCESSA A MENSAGEM RECEBIDA POR BROADCAST
+                    
+                    if ((strncmp("SMESSAGES\n",messages,10)==0)) {
+                        
+                        messages_aux=strtok(messages, s);
+                        
+                        while ((messages_aux=strtok(NULL, s))!=NULL) {
+                            sscanf("%d;%s", &clock, messages);
+                            
+                            if (imsg->tail==NULL) {
+                                imsg->tail=RegMsg(imsg->head, messages, clock);
+                                imsg->size++;
+                            }else{
+                                imsg->tail=RegMsg(imsg->tail, messages, clock);
+                                imsg->size++;
+                            }
+                            //VERIFICAÇÃO DO TAMANHO DA LISTA
+                            
+                            if (imsg->size>200) {
+                                RemovMsg(imsg->head);
+                                imsg->size--;
+                            }
+                        }
+                    }
+                }
+            }
+        
+        //ENCERRA TODAS AS SOCKETS
+        AUX_peers=head->next;
+        while(AUX_peers!=NULL){
+            close(AUX_peers->socket);
+            AUX_peers=AUX_peers->next;
+        }
+        
+        //LIBERTAR MEMORIA ALOCADA NA LISTA DE PEERS.
+            free_list_peers(head);
+            
+        //LIBERTAR MEMORIA ALOCADA NA LISTA MENSAGENS
+            free_list(imsg->head);
+            
+        //LIMPAR A LISTA DE MENSAGENS;
+        close(fd);
+        close(fd1);
+        close(fd2);
+        exit(0);
     }
-    //ENCERRA TODAS AS SOCKETS
-    AUX_peers=head->next;
-    while(AUX_peers!=NULL){
-        close(AUX_peers->socket);
-        AUX_peers=AUX_peers->next;
-    }
-    
-    //LIMPAR A LISTA DE MENSAGENS;
-    
-    free_list(first);
-    free(imsg);
-    close(fd);
-    close(fd1);
-    close(fd2);
-    exit(0);
+  }
 }
