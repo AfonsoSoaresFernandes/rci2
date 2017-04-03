@@ -110,7 +110,9 @@ void PrintMsg(msg* head, char * message){
         strcat(message, next->message);
         next=next->ptr;
     }
+    strcat(message, "\n");
 }
+
 
 //Função que recebe uma string onde vai escrever as ULTIMAS N Mensagens
 void Print_n_Msg(msg* head, char * message, int n, int size){
@@ -264,30 +266,17 @@ void remove_peer(struct peers *head, struct peers *removal){
 }
 
 
-void Get_message_peers(List_msg * imsg, msg * head, msg* tail, int socket, int function){
+void Get_message_peers(int socket){
     
-    char * ptr, buffer[28500];
-    char message[141];
-    int nleft, nbytes, nwritten, nread;
-    int logic_clock;
-    char *token;
-    const char s[2]="\n";
-    void (*old_handler)(int);   //Interrupt Handler
+    char * ptr, buffer[14];
+    int nleft, nbytes, nwritten;
     
-    if (function == 1) {
         stpcpy(buffer, "SGET_MESSAGES\n");
         ptr = buffer;
         nbytes = 14;
         
-        
         nleft = nbytes;                             //WRITE MESSAGE
         while (nleft>0) {
-            
-            if ((old_handler=signal(SIGPIPE, SIG_IGN))==SIG_ERR) {  //ERROR IF CONECION LOST
-                printf("error: %s\n", strerror(errno));
-                exit(1);
-            }
-            
             
             nwritten= write(socket, ptr, nleft);
             
@@ -299,40 +288,7 @@ void Get_message_peers(List_msg * imsg, msg * head, msg* tail, int socket, int f
             ptr+=nwritten;
         }
         
-    }
     
-    
-    nleft = 28500;
-    ptr = buffer;
-    while (nleft>0) {                           //READ MESSAGE
-        nread = read(socket, ptr, nleft);
-        
-        if (nread==-1) {                               //ERROR
-            printf("error: %s\n", strerror(errno));
-            exit(1);
-        }else if(nread==0){                             //CLOSED BY PEER
-            break;
-        }
-        
-        nleft-=nread;
-        ptr+=nread;
-    }
-    
-    
-    token = strtok(buffer, s);
-    
-    while (token) {
-        sscanf(buffer, "%d;%s",&logic_clock, message);
-        if (tail==NULL) {
-            tail=RegMsg(head, message, logic_clock);
-            imsg->size++;
-        }else{
-            tail=RegMsg(tail, message, logic_clock);
-            imsg->size++;
-        }
-        
-        token = strtok(NULL, s);
-    }
     
 }
 
@@ -364,6 +320,7 @@ int main(int argc, char** argv){
     struct hostent *h;
     int r;
     int n;
+    int m=200;
     unsigned long bufferlen=0;
     int fd ,fd1 ,fd2 , ret, addrlen=0, UPT=0, TPT=0, flag, i, maxfd, REG_DONE=0, newfd, first_time=0, nbytes, nwritten;
     int nleft, nread;
@@ -374,6 +331,60 @@ int main(int argc, char** argv){
     struct in_addr *a;
     fd_set socket_set;
     
+    
+    
+    //LER OS ARGUMENTOS DA IVOCAÇÃO DO PROGRAMA;
+    
+    //FIZ UMA RECOLHA DE DADOS COM MAIS PROTECÇÃO
+    if (argc==9 || argc==11 || argc==13 || argc==15 || argc==17) {
+        limit=argc-2;
+        for (count = 1; (count <= 7); count= (count + 2)) {
+            if(strcmp("-n",argv[count])==0){
+                sprintf(NAME ,"%s", argv[count+1]);
+                check++;
+            }
+            else if(strcmp("-j",argv[count])==0){
+                sprintf(IP, "%s", argv[count+1]);
+                check++;
+            }
+            else if(strcmp("-u",argv[count])==0){
+                UPT=atoi(argv[count+1]);
+                check++;
+            }
+            else if(strcmp("-t",argv[count])==0){
+                TPT=atoi(argv[count+1]);
+                check++;
+            }
+            
+        }
+        if (check<4) {
+            printf("Missing arguments!\nPlease try:\n-n name -j ip -u upt -t tpt\n");
+            exit(1);
+        }
+        for (count=9; (count<=limit); count=(count+2)) {
+            if(strcmp("-i",argv[count])==0){
+                inet_aton(argv[count+1], &SI_addr.sin_addr);
+            }
+            else if(strcmp("-p",argv[count])==0){
+                SI_addr.sin_port=htonl(atoi(argv[count+1]));
+            }
+            else if(strcmp("-m",argv[count])==0){
+                m =atoi(argv[count+1]);
+                if (m>200) {
+                    printf("Maximum number of Storeged Messages is 200\n");
+                    exit(1);
+                }
+            }
+            else if(strcmp("-r",argv[count])==0){
+                r=atoi(argv[count+1]);
+            }
+            
+        }
+    }else{
+        printf("Incorrect Appliction Calling\n ");
+        exit(1);
+    }
+
     //INICIALIZA LISTA DE MENSAGES
     first = (msg *)malloc(sizeof(msg));
     first->clock=0;
@@ -389,13 +400,6 @@ int main(int argc, char** argv){
     imsg->size = 0;
     
     
-    /*
-     //VERIFICA O Nº NECESSÁRIO DE ARGUMENTOS
-     if(argc<8){
-     printf("Argumentos Insuficientes");
-     exit(1);
-     }
-     */
     //HANDLER PARA SIGPIPE ERROR
     void (*old_handler)(int);//interrupt handler
     
@@ -430,53 +434,6 @@ int main(int argc, char** argv){
     UPT=TPT=9000;
     r=10;
     
-    //LER OS ARGUMENTOS DA IVOCAÇÃO DO PROGRAMA;
-    
-    //FIZ UMA RECOLHA DE DADOS COM MAIS PROTECÇÃO
-      if (argc==9 || argc==11 || argc==13 || argc==15 || argc==17) {
-     limit=argc-2;
-     for (count = 1; (count <= 7); count= (count + 2)) {
-     if(strcmp("-n",argv[count])==0){
-     sprintf(NAME ,"%s", argv[count+1]);
-     check++;
-     }
-     else if(strcmp("-j",argv[count])==0){
-     sprintf(IP, "%s", argv[count+1]);
-     check++;
-     }
-     else if(strcmp("-u",argv[count])==0){
-     UPT=atoi(argv[count+1]);
-     check++;
-     }
-     else if(strcmp("-t",argv[count])==0){
-     TPT=atoi(argv[count+1]);
-     check++;
-     }
-     
-     }
-     if (check<4) {
-     printf("Missing arguments!\nPlease try:\n-n name -j ip -u upt -t tpt\n");
-     exit(1);
-     }
-     for (count=9; (count<=limit); count=(count+2)) {
-     if(strcmp("-i",argv[count])==0){
-     inet_aton(argv[count+1], &SI_addr.sin_addr);
-     }
-     else if(strcmp("-p",argv[count])==0){
-     SI_addr.sin_port=htonl(atoi(argv[count+1]));
-     }
-     else if(strcmp("-m",argv[count])==0){
-     
-     }
-     else if(strcmp("-r",argv[count])==0){
-     r=atoi(argv[count+1]);
-     }
-     
-     }
-     }else{
-     printf("Incorrect Appliction Calling\n ");
-     exit(1);
-     }
     
     
     //CRIA A SOCKET UDP POR ONDE COMUNICA COM O S.I.
@@ -704,7 +661,7 @@ int main(int argc, char** argv){
                 default : break;
             }
         }
-        
+    }
         if(FD_ISSET(fd, &socket_set)){
             function_select=1;
             addrlen=sizeof(AUX_addr);
@@ -723,7 +680,7 @@ int main(int argc, char** argv){
                 //Conectar aos Servidores
                 connect_peers(head);
                 
-                //FALTA AQUI FAZER UM SGET_MESSAGES;!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                Get_message_peers(head->next->socket);
                 
             }
             else {
@@ -733,7 +690,7 @@ int main(int argc, char** argv){
             
             function_select=0;
             //VERIFICAÇÃO DO TAMANHO DA LISTA
-            if (imsg->size>200) {
+            if (imsg->size>m) {
                 RemovMsg(imsg->head);
                 imsg->size--;
             }
@@ -790,18 +747,32 @@ int main(int argc, char** argv){
                     }
                     //VERIFICAÇÃO DO TAMANHO DA LISTA
                     
-                    if (imsg->size>200) {
+                    if (imsg->size>m) {
                         RemovMsg(imsg->head);
                         imsg->size--;
                     }
                     
                     
                     //FAZER BROADCAST !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    memset((void*)buffer, (int)'\0',160);
+                    sprintf(buffer,"SMESSAGES\n%d;%s\n", imsg->tail->clock, imsg->tail->message);
+                    
+                    //A PARTIR DAQUI ATÈ AO BREAK JÁ TA FEITO.
                     AUX_peers=head->next;
-                    while(AUX_peers){
-                        /*write(AUX_peers->socket,,);*/
-                        
+                    while(AUX_peers!=NULL){
+                        nleft=strlen(buffer);
+                        ptr=buffer;
+                        while(nleft>0){
+                            nwritten=write(AUX_peers->socket,ptr,nleft);
+                            nleft-=nwritten;
+                            ptr+=nwritten;
+                            if(nwritten<=0){//error
+                                printf("O SERVIDOR: %s\nSOCKET: %d\nIP: %s\nPORTO: %d\n NÂO SE ENCONTRA DISPONIVEL", AUX_peers->name,AUX_peers->socket,AUX_peers->ip,AUX_peers->tcp);
+                                remove_peer(head, AUX_peers);
+                                break;                            }
+                        }
                         AUX_peers=AUX_peers->next;
+                        
                     }
                     break;
                 case 2:
@@ -869,22 +840,22 @@ int main(int argc, char** argv){
         }
             
             //DEPOIS DE SE REGISTAR UMA VEZ COM O S.I. FAZ REGISTOS PERIODICOS
-            if(REG_DONE==1){
-                addrlen=sizeof(SI_addr);
-                sprintf(buffer,"REG %s;%s;%d;%d", NAME, IP, UPT, TPT);
-                bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
-                ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
+        if(REG_DONE==1){
+            addrlen=sizeof(SI_addr);
+            sprintf(buffer,"REG %s;%s;%d;%d", NAME, IP, UPT, TPT);
+            bufferlen=strlen(buffer)+1; // STRLEN NAO CONTA COM O \0 NO FIM DA STRING.
+            ret=sendto(fd,buffer,bufferlen,0,(struct sockaddr*)&SI_addr,addrlen);
                 
-                if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
-                    printf("O enviu de dados falhou, SEND TO deu erro\n");
-                    printf("error: %s\n", strerror(errno));
-                    exit(3);
-                }
+            if(ret==-1){  //VERIFICAR O ENVIU DE DADOS.
+                printf("O enviu de dados falhou, SEND TO deu erro\n");
+                printf("error: %s\n", strerror(errno));
+                exit(3);
             }
+        }
             //PRECORRE A LISTA DE SOCKETS TCP PARA LER.
-            AUX_peers=head->next;
-            while(AUX_peers!=NULL){
-                if(FD_ISSET(AUX_peers->socket, &socket_set)){
+        AUX_peers=head->next;
+        while(AUX_peers!=NULL){
+            if(FD_ISSET(AUX_peers->socket, &socket_set)){
                     flag=0;
                     nbytes=160;
                     ptr=messages;
@@ -920,7 +891,12 @@ int main(int argc, char** argv){
                         messages_aux=strtok(messages, s);
                         
                         while ((messages_aux=strtok(NULL, s))!=NULL) {
-                            sscanf("%d;%s", &clock, messages);
+                                                                        //SAI SE CHEGOU AO FIM DO FICHEIRO
+                            if ((sscanf("%d;%s", &clock, messages)==0)) {
+                                break;
+                            }
+                            
+                            strcat(messages, s);
                             
                             if (imsg->tail==NULL) {
                                 imsg->tail=RegMsg(imsg->head, messages, clock);
@@ -931,15 +907,37 @@ int main(int argc, char** argv){
                             }
                             //VERIFICAÇÃO DO TAMANHO DA LISTA
                             
-                            if (imsg->size>200) {
+                            if (imsg->size>m) {
                                 RemovMsg(imsg->head);
                                 imsg->size--;
                             }
                         }
                     }
+                                                        //RESPONDE AO SERVIDOR COM TODAS AS MENSAGENS
+                if ((strncmp("SGET_MESSAGES\n",messages,14)==0)) {
+                    PrintMsg(imsg->head, allmsg);
+                    ptr = allmsg;
+                    nbytes = strlen(allmsg);
+                    
+                    nleft = nbytes;                             //WRITE MESSAGE
+                    while (nleft>0) {
+                        
+                        nwritten= write(socket, ptr, nleft);
+                        
+                        if (nwritten<=0) {                          //ERROR
+                            printf("error: %s\n", strerror(errno));
+                            exit(1);
+                        }
+                        nleft-=nwritten;
+                        ptr+=nwritten;
+                    }
+                    
                 }
             }
+            AUX_peers=AUX_peers->next;
+        }
         
+    }
         //ENCERRA TODAS AS SOCKETS
         AUX_peers=head->next;
         while(AUX_peers!=NULL){
@@ -958,6 +956,6 @@ int main(int argc, char** argv){
         close(fd1);
         close(fd2);
         exit(0);
-    }
+    
   }
-}
+
